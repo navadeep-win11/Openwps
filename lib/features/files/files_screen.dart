@@ -3,6 +3,7 @@ import '../../core/widgets/app_bar.dart';
 import '../../core/widgets/file_list_item.dart';
 import '../../core/widgets/file_card.dart';
 import '../../core/widgets/bottom_sheet.dart';
+import '../../core/widgets/app_dialog.dart';
 import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
@@ -65,14 +66,36 @@ class _FilesScreenState extends State<FilesScreen> {
           ListTile(
             leading: const Icon(Icons.delete, color: Colors.red),
             title: const Text('Delete', style: TextStyle(color: Colors.red)),
-            onTap: () async {
+            onTap: () {
               Navigator.pop(context);
-              await _storage.deleteDocument(doc.id);
-              _refresh();
+              _showDeleteConfirmation(context, doc);
             },
           ),
         ],
       ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, WriterDocument doc) {
+    showAppDialog(
+      context: context,
+      title: 'Delete Document?',
+      content: Text('Are you sure you want to delete "${doc.title}"? This cannot be undone.'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () async {
+            await _storage.deleteDocument(doc.id);
+            if (!context.mounted) return;
+            Navigator.pop(context);
+            _refresh();
+          },
+          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+        ),
+      ],
     );
   }
 
@@ -170,7 +193,7 @@ class _FilesScreenState extends State<FilesScreen> {
                                 await Navigator.pushNamed(context, '/writer', arguments: doc.id);
                                 _refresh();
                               },
-                              onMoreTap: () => _showFileOptions(context, doc),
+                              onLongPress: () => _showFileOptions(context, doc),
                             );
                           },
                         );

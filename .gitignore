@@ -6,5 +6,4 @@ linux/
 web/
 .dart_tool/
 build/
-android/
 .idea/

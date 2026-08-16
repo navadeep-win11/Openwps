@@ -25,7 +25,7 @@ class _WriterScreenState extends State<WriterScreen> {
   WriterDocument? _document;
   QuillController? _controller;
   bool _isLoading = true;
-  String _saveStatus = 'Saved';
+  final ValueNotifier<String> _saveStatus = ValueNotifier<String>('Saved');
   Timer? _debounceTimer;
 
   @override
@@ -58,9 +58,7 @@ class _WriterScreenState extends State<WriterScreen> {
   }
 
   void _onDocumentChanged() {
-    setState(() {
-      _saveStatus = 'Saving...';
-    });
+    _saveStatus.value = 'Saving...';
 
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 1000), () {
@@ -77,14 +75,10 @@ class _WriterScreenState extends State<WriterScreen> {
 
       await _storage.updateDocument(updatedDoc);
 
-      setState(() {
-        _document = updatedDoc;
-        _saveStatus = 'Saved';
-      });
+      _document = updatedDoc;
+      _saveStatus.value = 'Saved';
     } catch (e) {
-      setState(() {
-        _saveStatus = 'Save failed';
-      });
+      _saveStatus.value = 'Save failed';
     }
   }
 
@@ -194,6 +188,7 @@ class _WriterScreenState extends State<WriterScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _controller?.dispose();
+    _saveStatus.dispose();
     super.dispose();
   }
 
@@ -217,13 +212,18 @@ class _WriterScreenState extends State<WriterScreen> {
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                _saveStatus,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: _saveStatus == 'Save failed'
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.outline,
-                    ),
+              child: ValueListenableBuilder<String>(
+                valueListenable: _saveStatus,
+                builder: (context, status, child) {
+                  return Text(
+                    status,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: status == 'Save failed'
+                              ? Theme.of(context).colorScheme.error
+                              : Theme.of(context).colorScheme.outline,
+                        ),
+                  );
+                },
               ),
             ),
           ),
@@ -240,10 +240,35 @@ class _WriterScreenState extends State<WriterScreen> {
       body: Column(
         children: [
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: QuillEditor.basic(
-                controller: _controller!,
+            child: Container(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      constraints: const BoxConstraints(minHeight: 1000), // A4 aspect approximate
+                      padding: const EdgeInsets.all(48.0),
+                      child: QuillEditor.basic(
+                        controller: _controller!,
+                        config: const QuillEditorConfig(
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

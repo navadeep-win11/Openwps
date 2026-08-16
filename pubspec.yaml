@@ -41,6 +41,7 @@ dependencies:
   shared_preferences: ^2.5.5
   image_picker: ^1.2.3
   path: ^1.9.1
+  flutter_quill_extensions: ^11.0.0
 
 dev_dependencies:
   flutter_test:

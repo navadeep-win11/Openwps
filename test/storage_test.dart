@@ -32,4 +32,33 @@ void main() {
     final fetchedAfterDelete = await storage.getDocument(doc.id);
     expect(fetchedAfterDelete, isNull);
   });
+
+  test('rename document', () async {
+    final storage = LocalDocumentStorage();
+    final doc = await storage.createDocument('Old Title');
+
+    await storage.renameDocument(doc.id, 'New Title');
+
+    final fetched = await storage.getDocument(doc.id);
+    expect(fetched!.title, 'New Title');
+
+    await storage.deleteDocument(doc.id);
+  });
+
+  test('toggle favorite document', () async {
+    final storage = LocalDocumentStorage();
+    final doc = await storage.createDocument('Fav Doc');
+
+    expect(doc.isFavorite, false);
+
+    await storage.toggleFavorite(doc.id);
+    final fetched = await storage.getDocument(doc.id);
+    expect(fetched!.isFavorite, true);
+
+    await storage.toggleFavorite(doc.id);
+    final fetchedAgain = await storage.getDocument(doc.id);
+    expect(fetchedAgain!.isFavorite, false);
+
+    await storage.deleteDocument(doc.id);
+  });
 }
