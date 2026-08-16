@@ -6,6 +6,7 @@ import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../core/widgets/bottom_sheet.dart';
+import 'docx/docx_exporter.dart';
 import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
@@ -134,6 +135,45 @@ class _WriterScreenState extends State<WriterScreen> {
     }
   }
 
+  Future<void> _exportToDocx() async {
+    if (_document == null || _controller == null) return;
+
+    setState(() {
+      _saveStatus.value = 'Exporting...';
+    });
+
+    try {
+      // Ensure latest changes are serialized
+      final String currentContent = jsonEncode(_controller!.document.toDelta().toJson());
+      final docToExport = _document!.copyWith(content: currentContent);
+
+      final dir = await getApplicationDocumentsDirectory();
+      final exportsDir = Directory('${dir.path}/exports');
+      if (!await exportsDir.exists()) {
+        await exportsDir.create(recursive: true);
+      }
+
+
+      final safeTitle = docToExport.title.replaceAll(RegExp(r'[<>:"/\|?*]'), '_');
+      final exportPath = '${exportsDir.path}/$safeTitle.docx';
+      final file = await DocxExporter.exportDocument(docToExport, exportPath);
+
+      if (mounted) {
+        _saveStatus.value = 'Saved';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Exported successfully to ${file.path}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _saveStatus.value = 'Export failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Export failed')),
+        );
+      }
+    }
+  }
+
   void _showInsertMenu(BuildContext context) {
     showAppBottomSheet(
       context: context,
@@ -177,6 +217,14 @@ class _WriterScreenState extends State<WriterScreen> {
             onTap: () {
               Navigator.pop(context);
               _exportToTxt();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.file_download),
+            title: const Text('Export to DOCX'),
+            onTap: () {
+              Navigator.pop(context);
+              _exportToDocx();
             },
           ),
         ],

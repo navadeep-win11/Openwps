@@ -7,6 +7,9 @@ import '../../core/widgets/app_dialog.dart';
 import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
+import 'package:file_selector/file_selector.dart';
+import 'dart:io';
+import '../writer/docx/docx_importer.dart';
 
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
@@ -23,6 +26,45 @@ class _FilesScreenState extends State<FilesScreen> {
   void initState() {
     super.initState();
     _refresh();
+  }
+
+    Future<void> _importDocx() async {
+    try {
+      const XTypeGroup typeGroup = XTypeGroup(
+        label: 'Word Documents',
+        extensions: <String>['docx'],
+      );
+      final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+
+      if (file != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reading document...')),
+        );
+
+        final docxFile = File(file.path);
+        final importedDoc = await DocxImporter.importDocument(docxFile, _storage);
+
+        if (!mounted) return;
+        if (importedDoc != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Imported successfully')),
+          );
+          await Navigator.pushNamed(context, '/writer', arguments: importedDoc.id);
+          _refresh();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Import failed: Invalid DOCX')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import failed')),
+        );
+      }
+    }
   }
 
   void _refresh() {
@@ -137,6 +179,11 @@ class _FilesScreenState extends State<FilesScreen> {
       appBar: CustomAppBar(
         title: 'Files',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_upload),
+            tooltip: 'Import DOCX',
+            onPressed: _importDocx,
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {},
