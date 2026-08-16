@@ -1,12 +1,15 @@
+import 'models/writer_document.dart';
+
 abstract class DocumentStorage {
-  Future<List<String>> listFiles();
-  Future<void> createFile(String name, String content);
-  Future<String> openFile(String name);
-  Future<void> saveFile(String name, String content);
-  Future<void> renameFile(String oldName, String newName);
-  Future<void> deleteFile(String name);
-  Future<void> duplicateFile(String name);
-  Future<List<String>> searchFiles(String query);
-  Future<void> favoriteFile(String name);
-  Future<List<String>> recentFiles();
+  Future<List<WriterDocument>> listDocuments();
+  Future<WriterDocument> createDocument(String title);
+  Future<WriterDocument?> getDocument(String id);
+  Future<void> updateDocument(WriterDocument document);
+  Future<void> deleteDocument(String id);
+  Future<void> renameDocument(String id, String newTitle);
+  Future<void> duplicateDocument(String id);
+  Future<List<WriterDocument>> searchDocuments(String query);
+  Future<void> toggleFavorite(String id);
+  Future<List<WriterDocument>> recentDocuments();
+  Future<String> saveImage(String documentId, String tempImagePath);
 }

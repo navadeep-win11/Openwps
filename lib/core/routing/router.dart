@@ -9,6 +9,7 @@ import '../../features/settings/settings_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/templates/templates_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
+import '../../features/writer/writer_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -23,13 +24,24 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const TemplatesScreen());
       case '/notifications':
         return MaterialPageRoute(builder: (_) => const NotificationsScreen());
+      case '/writer':
+        final documentId = settings.arguments as String?;
+        if (documentId == null) {
+          return _errorRoute('Document ID is required');
+        }
+        return MaterialPageRoute(builder: (_) => WriterScreen(documentId: documentId));
       default:
-        return MaterialPageRoute(
+        return _errorRoute('No route defined for ${settings.name}');
+    }
+  }
+
+  static Route<dynamic> _errorRoute(String message) {
+     return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(child: Text('No route defined for ${settings.name}')),
+            appBar: AppBar(title: const Text('Error')),
+            body: Center(child: Text(message)),
           ),
         );
-    }
   }
 }
 

@@ -15,7 +15,7 @@ class FileCard extends StatelessWidget {
   final String subtitle;
   final FileType type;
   final VoidCallback onTap;
-  final VoidCallback? onMoreTap;
+  final VoidCallback? onLongPress;
 
   const FileCard({
     super.key,
@@ -23,7 +23,7 @@ class FileCard extends StatelessWidget {
     required this.subtitle,
     required this.type,
     required this.onTap,
-    this.onMoreTap,
+    this.onLongPress,
   });
 
   @override
@@ -32,6 +32,7 @@ class FileCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
@@ -41,10 +42,10 @@ class FileCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildIcon(context),
-                  if (onMoreTap != null)
+                  if (onLongPress != null)
                     IconButton(
                       icon: const Icon(Icons.more_horiz),
-                      onPressed: onMoreTap,
+                      onPressed: onLongPress,
                       iconSize: 20,
                       color: Theme.of(context).colorScheme.outline,
                       padding: EdgeInsets.zero,

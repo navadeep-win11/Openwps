@@ -7,7 +7,7 @@ class FileListItem extends StatelessWidget {
   final String subtitle;
   final FileType type;
   final VoidCallback onTap;
-  final VoidCallback? onMoreTap;
+  final VoidCallback? onLongPress;
 
   const FileListItem({
     super.key,
@@ -15,13 +15,14 @@ class FileListItem extends StatelessWidget {
     required this.subtitle,
     required this.type,
     required this.onTap,
-    this.onMoreTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Row(
@@ -52,10 +53,10 @@ class FileListItem extends StatelessWidget {
                 ],
               ),
             ),
-            if (onMoreTap != null)
+            if (onLongPress != null)
               IconButton(
                 icon: const Icon(Icons.more_horiz),
-                onPressed: onMoreTap,
+                onPressed: onLongPress,
                 color: Theme.of(context).colorScheme.outline,
               ),
           ],
