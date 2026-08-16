@@ -1,0 +1,10 @@
+stitch_reference/unzipped/
+macos/
+ios/
+windows/
+linux/
+web/
+.dart_tool/
+build/
+android/
+.idea/
