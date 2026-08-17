@@ -7,6 +7,10 @@ import '../../core/widgets/app_dialog.dart';
 import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
+import '../../storage/models/spreadsheet_document.dart';
+import 'package:file_selector/file_selector.dart';
+import 'dart:io';
+import '../writer/docx/docx_importer.dart';
 
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
@@ -17,7 +21,7 @@ class FilesScreen extends StatefulWidget {
 
 class _FilesScreenState extends State<FilesScreen> {
   final DocumentStorage _storage = LocalDocumentStorage();
-  late Future<List<WriterDocument>> _docsFuture;
+  late Future<List<dynamic>> _docsFuture;
 
   @override
   void initState() {
@@ -25,13 +29,61 @@ class _FilesScreenState extends State<FilesScreen> {
     _refresh();
   }
 
+    Future<void> _importDocx() async {
+    try {
+      const XTypeGroup typeGroup = XTypeGroup(
+        label: 'Word Documents',
+        extensions: <String>['docx'],
+      );
+      final XFile? file = await openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+
+      if (file != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reading document...')),
+        );
+
+        final docxFile = File(file.path);
+        final importedDoc = await DocxImporter.importDocument(docxFile, _storage);
+
+        if (!mounted) return;
+        if (importedDoc != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Imported successfully')),
+          );
+          await Navigator.pushNamed(context, '/writer', arguments: importedDoc.id);
+          _refresh();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Import failed: Invalid DOCX')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import failed')),
+        );
+      }
+    }
+  }
+
   void _refresh() {
     setState(() {
-      _docsFuture = _storage.listDocuments();
+      _docsFuture = Future.wait([
+        _storage.listDocuments(),
+        _storage.listSpreadsheets(),
+      ]).then((results) {
+        final List<dynamic> combined = [];
+        combined.addAll(results[0]);
+        combined.addAll(results[1]);
+        combined.sort((a, b) => (b.updatedAt as DateTime).compareTo(a.updatedAt as DateTime));
+        return combined;
+      });
     });
   }
 
-  void _showFileOptions(BuildContext context, WriterDocument doc) {
+    void _showFileOptions(BuildContext context, dynamic doc) {
     showAppBottomSheet(
       context: context,
       title: doc.title,
@@ -42,7 +94,11 @@ class _FilesScreenState extends State<FilesScreen> {
             title: Text(doc.isFavorite ? 'Remove Favorite' : 'Add to Favorites'),
             onTap: () async {
               Navigator.pop(context);
-              await _storage.toggleFavorite(doc.id);
+              if (doc is WriterDocument) {
+                await _storage.toggleFavorite(doc.id);
+              } else if (doc is SpreadsheetDocument) {
+                await _storage.toggleSpreadsheetFavorite(doc.id);
+              }
               _refresh();
             },
           ),
@@ -59,7 +115,11 @@ class _FilesScreenState extends State<FilesScreen> {
             title: const Text('Duplicate'),
             onTap: () async {
               Navigator.pop(context);
-              await _storage.duplicateDocument(doc.id);
+              if (doc is WriterDocument) {
+                await _storage.duplicateDocument(doc.id);
+              } else if (doc is SpreadsheetDocument) {
+                await _storage.duplicateSpreadsheet(doc.id);
+              }
               _refresh();
             },
           ),
@@ -76,7 +136,7 @@ class _FilesScreenState extends State<FilesScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, WriterDocument doc) {
+  void _showDeleteConfirmation(BuildContext context, dynamic doc) {
     showAppDialog(
       context: context,
       title: 'Delete Document?',
@@ -88,7 +148,11 @@ class _FilesScreenState extends State<FilesScreen> {
         ),
         TextButton(
           onPressed: () async {
-            await _storage.deleteDocument(doc.id);
+            if (doc is WriterDocument) {
+              await _storage.deleteDocument(doc.id);
+            } else if (doc is SpreadsheetDocument) {
+              await _storage.deleteSpreadsheet(doc.id);
+            }
             if (!context.mounted) return;
             Navigator.pop(context);
             _refresh();
@@ -99,7 +163,7 @@ class _FilesScreenState extends State<FilesScreen> {
     );
   }
 
-  void _showRenameDialog(BuildContext context, WriterDocument doc) {
+  void _showRenameDialog(BuildContext context, dynamic doc) {
     final controller = TextEditingController(text: doc.title);
     showDialog(
       context: context,
@@ -118,7 +182,11 @@ class _FilesScreenState extends State<FilesScreen> {
             onPressed: () async {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
-                await _storage.renameDocument(doc.id, newTitle);
+                if (doc is WriterDocument) {
+                   await _storage.renameDocument(doc.id, newTitle);
+                } else if (doc is SpreadsheetDocument) {
+                   await _storage.renameSpreadsheet(doc.id, newTitle);
+                }
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 _refresh();
@@ -129,14 +197,17 @@ class _FilesScreenState extends State<FilesScreen> {
         ],
       ),
     );
-  }
-
-  @override
+  }  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         title: 'Files',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_upload),
+            tooltip: 'Import DOCX',
+            onPressed: _importDocx,
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {},
@@ -162,7 +233,7 @@ class _FilesScreenState extends State<FilesScreen> {
                 children: [
                   RefreshIndicator(
                     onRefresh: () async => _refresh(),
-                    child: FutureBuilder<List<WriterDocument>>(
+                    child: FutureBuilder<List<dynamic>>(
                       future: _docsFuture,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -183,14 +254,15 @@ class _FilesScreenState extends State<FilesScreen> {
                         final docs = snapshot.data!;
                         return ListView.builder(
                           itemCount: docs.length,
-                          itemBuilder: (context, index) {
+                                                    itemBuilder: (context, index) {
                             final doc = docs[index];
+                            final isWriter = doc is WriterDocument;
                             return FileListItem(
                               title: doc.isFavorite ? '★ ${doc.title}' : doc.title,
-                              subtitle: 'Writer Document',
-                              type: FileType.writer,
+                              subtitle: isWriter ? 'Writer Document' : 'Spreadsheet',
+                              type: isWriter ? FileType.writer : FileType.spreadsheet,
                               onTap: () async {
-                                await Navigator.pushNamed(context, '/writer', arguments: doc.id);
+                                await Navigator.pushNamed(context, isWriter ? '/writer' : '/spreadsheet', arguments: doc.id);
                                 _refresh();
                               },
                               onLongPress: () => _showFileOptions(context, doc),
