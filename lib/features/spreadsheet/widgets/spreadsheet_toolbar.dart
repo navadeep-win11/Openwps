@@ -4,14 +4,18 @@ class SpreadsheetToolbar extends StatelessWidget {
   final Map<String, dynamic> currentStyle;
   final Function(String key, dynamic value) onStyleChanged;
   final VoidCallback onAddRow;
+  final VoidCallback onDeleteRow;
   final VoidCallback onAddColumn;
+  final VoidCallback onDeleteColumn;
 
   const SpreadsheetToolbar({
     super.key,
     required this.currentStyle,
     required this.onStyleChanged,
     required this.onAddRow,
+    required this.onDeleteRow,
     required this.onAddColumn,
+    required this.onDeleteColumn,
   });
 
   @override
@@ -88,9 +92,22 @@ class SpreadsheetToolbar extends StatelessWidget {
                 tooltip: 'Add Row',
               ),
               IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: onDeleteRow,
+                tooltip: 'Delete Selected Row',
+              ),
+              const SizedBox(width: 8),
+              Container(width: 1, height: 24, color: Colors.grey[400]),
+              const SizedBox(width: 8),
+              IconButton(
                 icon: const Icon(Icons.view_column),
                 onPressed: onAddColumn,
                 tooltip: 'Add Column',
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_sweep),
+                onPressed: onDeleteColumn,
+                tooltip: 'Delete Selected Column',
               ),
             ],
           ),

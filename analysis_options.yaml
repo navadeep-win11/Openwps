@@ -1,10 +1,8 @@
 include: package:flutter_lints/flutter.yaml
 
-linter:
-  rules:
-    use_null_aware_elements: false
-
-    curly_braces_in_flow_control_structures: false
-    unintended_html_in_doc_comment: false
-
-    deprecated_member_use: false
+analyzer:
+  errors:
+    use_null_aware_elements: ignore
+    curly_braces_in_flow_control_structures: ignore
+    unintended_html_in_doc_comment: ignore
+    deprecated_member_use: ignore

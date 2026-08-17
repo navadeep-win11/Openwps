@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../storage/document_storage.dart';
@@ -33,6 +34,7 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
 
   final List<PlutoColumn> _columns = [];
   final List<PlutoRow> _rows = [];
+  Key _gridKey = UniqueKey();
 
   @override
   void initState() {
@@ -44,7 +46,11 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
     final doc = await _storage.getSpreadsheet(widget.documentId);
     if (doc != null) {
       _document = doc;
-      _initializeGrid(doc.sheets.first); // Assuming single sheet for initial view
+      final activeSheetData = _document!.sheets.firstWhere(
+        (s) => s.id == _document!.activeSheet,
+        orElse: () => _document!.sheets.first,
+      );
+      _initializeGrid(activeSheetData);
       setState(() {
         _isLoading = false;
       });
@@ -70,6 +76,40 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
         enableColumnDrag: true,
         enableRowDrag: false,
         enableContextMenu: false,
+        renderer: (rendererContext) {
+          final cellId = '$colName${rendererContext.rowIdx + 1}';
+          final cellData = sheet.cells[cellId];
+          final style = cellData?.style ?? {};
+
+          Color? bgColor;
+          if (style['background'] != null) {
+            try { bgColor = Color(int.parse(style['background'].replaceAll('#', '0xFF'))); } catch (_) {}
+          }
+          Color? fgColor;
+          if (style['color'] != null) {
+            try { fgColor = Color(int.parse(style['color'].replaceAll('#', '0xFF'))); } catch (_) {}
+          }
+
+          Alignment align = Alignment.centerLeft;
+          if (style['align'] == 'center') align = Alignment.center;
+          if (style['align'] == 'right') align = Alignment.centerRight;
+
+          return Container(
+            alignment: align,
+            color: bgColor,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              rendererContext.cell.value.toString(),
+              style: TextStyle(
+                color: fgColor,
+                fontWeight: style['bold'] == true ? FontWeight.bold : FontWeight.normal,
+                fontStyle: style['italic'] == true ? FontStyle.italic : FontStyle.normal,
+                decoration: style['underline'] == true ? TextDecoration.underline : TextDecoration.none,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        },
       ));
     }
 
@@ -123,7 +163,10 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
     final cellId = '$col$row';
     final newValue = event.value.toString();
 
-    final sheet = _document!.sheets.first;
+    final sheet = _document!.sheets.firstWhere(
+      (s) => s.id == _document!.activeSheet,
+      orElse: () => _document!.sheets.first,
+    );
     CellData cellData = sheet.cells[cellId] ?? CellData(value: '');
 
     if (newValue.startsWith('=')) {
@@ -179,7 +222,10 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
       _selectedCellPosition = cellId;
     });
 
-    final sheet = _document!.sheets.first;
+    final sheet = _document!.sheets.firstWhere(
+      (s) => s.id == _document!.activeSheet,
+      orElse: () => _document!.sheets.first,
+    );
     final cellData = sheet.cells[cellId];
 
     if (cellData != null && cellData.formula != null) {
@@ -196,7 +242,10 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
   void _applyFormatting(String key, dynamic value) {
     if (_document == null || _selectedCellPosition.isEmpty) return;
 
-    final sheet = _document!.sheets.first;
+    final sheet = _document!.sheets.firstWhere(
+      (s) => s.id == _document!.activeSheet,
+      orElse: () => _document!.sheets.first,
+    );
     CellData cellData = sheet.cells[_selectedCellPosition] ?? CellData(value: '');
     cellData.style ??= {};
 
@@ -262,12 +311,114 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
 
     if (_document == null) {
       return Scaffold(
+
+      bottomNavigationBar: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: _addSheet,
+              tooltip: 'Add Sheet',
+            ),
+            Expanded(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _document!.sheets.length,
+                itemBuilder: (context, index) {
+                  final sheet = _document!.sheets[index];
+                  final isActive = sheet.id == _document!.activeSheet;
+                  return InkWell(
+                    onTap: () => _switchSheet(sheet.id),
+                    onLongPress: () => _showSheetOptions(context, sheet),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        sheet.name,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                          color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+
         appBar: AppBar(title: const Text('Error')),
         body: const Center(child: Text('Spreadsheet not found')),
       );
     }
 
     return Scaffold(
+
+      bottomNavigationBar: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: _addSheet,
+              tooltip: 'Add Sheet',
+            ),
+            Expanded(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _document!.sheets.length,
+                itemBuilder: (context, index) {
+                  final sheet = _document!.sheets[index];
+                  final isActive = sheet.id == _document!.activeSheet;
+                  return InkWell(
+                    onTap: () => _switchSheet(sheet.id),
+                    onLongPress: () => _showSheetOptions(context, sheet),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        sheet.name,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                          color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+
       appBar: AppBar(
         title: Text(_document!.title),
         actions: [
@@ -301,12 +452,90 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
             currentStyle: _currentStyle,
             onStyleChanged: _applyFormatting,
             onAddRow: () {
-               _stateManager.appendRows([PlutoRow(cells: {for (var col in _columns) col.field: PlutoCell(value: '')})]);
+               _stateManager.insertRows(_stateManager.refRows.length, [PlutoRow(cells: {for (var col in _columns) col.field: PlutoCell(value: '')})]);
                _onDocumentChanged();
             },
+            onDeleteRow: () {
+               if (_stateManager.currentCell != null) {
+                  _stateManager.removeRows([_stateManager.currentCell!.row]);
+                  _onDocumentChanged();
+               } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a cell in the row to delete')));
+               }
+            },
             onAddColumn: () {
-               // adding columns dynamically is complex in pluto_grid, we pre-allocate A-Z for this iteration
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Max columns reached')));
+                final newColIndex = _columns.length;
+
+                String colName = '';
+                int tempCol = newColIndex + 1;
+                while (tempCol > 0) {
+                  int rem = (tempCol - 1) % 26;
+                  colName = String.fromCharCode('A'.codeUnitAt(0) + rem) + colName;
+                  tempCol = (tempCol - 1) ~/ 26;
+                }
+
+                final newCol = PlutoColumn(
+                  title: colName,
+                  field: colName,
+                  type: PlutoColumnType.text(),
+                  width: 100,
+                  enableColumnDrag: true,
+                  enableRowDrag: false,
+                  enableContextMenu: false,
+                  renderer: (rendererContext) {
+                    final sheet = _document!.sheets.firstWhere((s) => s.id == _document!.activeSheet, orElse: () => _document!.sheets.first);
+                    final cellId = '$colName${rendererContext.rowIdx + 1}';
+                    final cellData = sheet.cells[cellId];
+                    final style = cellData?.style ?? {};
+
+                    Color? bgColor;
+                    if (style['background'] != null) {
+                      try { bgColor = Color(int.parse(style['background'].replaceAll('#', '0xFF'))); } catch (_) {}
+                    }
+                    Color? fgColor;
+                    if (style['color'] != null) {
+                      try { fgColor = Color(int.parse(style['color'].replaceAll('#', '0xFF'))); } catch (_) {}
+                    }
+
+                    Alignment align = Alignment.centerLeft;
+                    if (style['align'] == 'center') align = Alignment.center;
+                    if (style['align'] == 'right') align = Alignment.centerRight;
+
+                    return Container(
+                      alignment: align,
+                      color: bgColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        rendererContext.cell.value.toString(),
+                        style: TextStyle(
+                          color: fgColor,
+                          fontWeight: style['bold'] == true ? FontWeight.bold : FontWeight.normal,
+                          fontStyle: style['italic'] == true ? FontStyle.italic : FontStyle.normal,
+                          decoration: style['underline'] == true ? TextDecoration.underline : TextDecoration.none,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  },
+                );
+
+                setState(() {
+                  _columns.add(newCol);
+                });
+                _stateManager.insertColumns(_columns.length - 1, [newCol]);
+                _onDocumentChanged();
+            },
+            onDeleteColumn: () {
+               if (_stateManager.currentColumn != null) {
+                  final colToDelete = _stateManager.currentColumn!;
+                  setState(() {
+                    _columns.removeWhere((c) => c.field == colToDelete.field);
+                  });
+                  _stateManager.removeColumns([colToDelete]);
+                  _onDocumentChanged();
+               } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a column to delete')));
+               }
             },
           ),
           FormulaBar(
@@ -318,6 +547,7 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
           ),
           Expanded(
             child: PlutoGrid(
+              key: _gridKey,
               columns: _columns,
               rows: _rows,
               onLoaded: (PlutoGridOnLoadedEvent event) {
@@ -342,6 +572,123 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _switchSheet(String sheetId) {
+    if (_document == null || _document!.activeSheet == sheetId) return;
+
+    // Save current active sheet edits
+    _saveDocument();
+
+    final newSheet = _document!.sheets.firstWhere((s) => s.id == sheetId);
+    setState(() {
+      _document!.activeSheet = sheetId;
+      _initializeGrid(newSheet);
+      _gridKey = UniqueKey(); // Force PlutoGrid to rebuild with new rows/cols
+    });
+  }
+
+  void _addSheet() {
+    if (_document == null) return;
+
+    final newId = const Uuid().v4();
+    int newIndex = _document!.sheets.length + 1;
+    String newName = 'Sheet$newIndex';
+
+    // Ensure unique name
+    while (_document!.sheets.any((s) => s.name == newName)) {
+      newIndex++;
+      newName = 'Sheet$newIndex';
+    }
+
+    setState(() {
+      _document!.sheets.add(SheetData(id: newId, name: newName, cells: {}));
+      _switchSheet(newId);
+    });
+    _onDocumentChanged();
+  }
+
+  void _deleteSheet(String sheetId) {
+    if (_document == null) return;
+    if (_document!.sheets.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot delete the last sheet')),
+      );
+      return;
+    }
+
+    setState(() {
+      _document!.sheets.removeWhere((s) => s.id == sheetId);
+      if (_document!.activeSheet == sheetId) {
+        _switchSheet(_document!.sheets.first.id);
+      }
+    });
+    _onDocumentChanged();
+  }
+
+  void _renameSheet(String sheetId) {
+    if (_document == null) return;
+    final sheet = _document!.sheets.firstWhere((s) => s.id == sheetId);
+    final controller = TextEditingController(text: sheet.name);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rename Sheet'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'New Name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                setState(() {
+                  sheet.name = newName;
+                });
+                _onDocumentChanged();
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: const Text('Rename'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSheetOptions(BuildContext context, SheetData sheet) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Rename'),
+              onTap: () {
+                Navigator.pop(context);
+                _renameSheet(sheet.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteSheet(sheet.id);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
