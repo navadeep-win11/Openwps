@@ -167,6 +167,11 @@ class DocxExporter {
           }
           flushParagraph(); // Ensure last paragraph is flushed
 
+          docXml.element('w:sectPr', nest: () {
+            docXml.element('w:pgSz', attributes: {'w:w': '12240', 'w:h': '15840'});
+            docXml.element('w:pgMar', attributes: {'w:top': '1440', 'w:right': '1440', 'w:bottom': '1440', 'w:left': '1440'});
+          });
+
         });
 
         final docRelsStr = documentRelsXml.buildDocument().toString();
