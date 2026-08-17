@@ -9,6 +9,7 @@ import '../../core/widgets/app_dialog.dart';
 import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
+import '../../storage/models/spreadsheet_document.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,21 +20,39 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final DocumentStorage _storage = LocalDocumentStorage();
-  late Future<List<WriterDocument>> _recentDocsFuture;
+  late Future<List<dynamic>> _recentDocsFuture;
 
   @override
   void initState() {
     super.initState();
-    _recentDocsFuture = _storage.recentDocuments();
+    _recentDocsFuture = Future.wait([
+        _storage.recentDocuments(),
+        _storage.recentSpreadsheets(),
+      ]).then((results) {
+        final List<dynamic> combined = [];
+        combined.addAll(results[0]);
+        combined.addAll(results[1]);
+        combined.sort((a, b) => (b.updatedAt as DateTime).compareTo(a.updatedAt as DateTime));
+        return combined.take(5).toList();
+      });
   }
 
   void _refresh() {
     setState(() {
-      _recentDocsFuture = _storage.recentDocuments();
+      _recentDocsFuture = Future.wait([
+        _storage.recentDocuments(),
+        _storage.recentSpreadsheets(),
+      ]).then((results) {
+        final List<dynamic> combined = [];
+        combined.addAll(results[0]);
+        combined.addAll(results[1]);
+        combined.sort((a, b) => (b.updatedAt as DateTime).compareTo(a.updatedAt as DateTime));
+        return combined.take(5).toList();
+      });
     });
   }
 
-  void _showFileOptions(BuildContext context, WriterDocument doc) {
+    void _showFileOptions(BuildContext context, dynamic doc) {
     showAppBottomSheet(
       context: context,
       title: doc.title,
@@ -44,7 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
             title: Text(doc.isFavorite ? 'Remove Favorite' : 'Add to Favorites'),
             onTap: () async {
               Navigator.pop(context);
-              await _storage.toggleFavorite(doc.id);
+              if (doc is WriterDocument) {
+                await _storage.toggleFavorite(doc.id);
+              } else if (doc is SpreadsheetDocument) {
+                await _storage.toggleSpreadsheetFavorite(doc.id);
+              }
               _refresh();
             },
           ),
@@ -61,7 +84,11 @@ class _HomeScreenState extends State<HomeScreen> {
             title: const Text('Duplicate'),
             onTap: () async {
               Navigator.pop(context);
-              await _storage.duplicateDocument(doc.id);
+              if (doc is WriterDocument) {
+                await _storage.duplicateDocument(doc.id);
+              } else if (doc is SpreadsheetDocument) {
+                await _storage.duplicateSpreadsheet(doc.id);
+              }
               _refresh();
             },
           ),
@@ -78,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, WriterDocument doc) {
+  void _showDeleteConfirmation(BuildContext context, dynamic doc) {
     showAppDialog(
       context: context,
       title: 'Delete Document?',
@@ -90,7 +117,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         TextButton(
           onPressed: () async {
-            await _storage.deleteDocument(doc.id);
+            if (doc is WriterDocument) {
+              await _storage.deleteDocument(doc.id);
+            } else if (doc is SpreadsheetDocument) {
+              await _storage.deleteSpreadsheet(doc.id);
+            }
             if (!context.mounted) return;
             Navigator.pop(context);
             _refresh();
@@ -101,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showRenameDialog(BuildContext context, WriterDocument doc) {
+  void _showRenameDialog(BuildContext context, dynamic doc) {
     final controller = TextEditingController(text: doc.title);
     showDialog(
       context: context,
@@ -120,7 +151,11 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
-                await _storage.renameDocument(doc.id, newTitle);
+                if (doc is WriterDocument) {
+                   await _storage.renameDocument(doc.id, newTitle);
+                } else if (doc is SpreadsheetDocument) {
+                   await _storage.renameSpreadsheet(doc.id, newTitle);
+                }
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
                 _refresh();
@@ -131,9 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-  }
-
-  @override
+  }  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
@@ -162,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SectionHeader(title: 'Recent'),
               SizedBox(
                 height: 140,
-                child: FutureBuilder<List<WriterDocument>>(
+                child: FutureBuilder<List<dynamic>>(
                   future: _recentDocsFuture,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -176,18 +209,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       itemCount: docs.length,
-                      itemBuilder: (context, index) {
+                                            itemBuilder: (context, index) {
                         final doc = docs[index];
+                        final isWriter = doc is WriterDocument;
                         return Padding(
                           padding: const EdgeInsets.only(right: 12.0),
                           child: SizedBox(
                             width: 140,
                             child: FileCard(
                               title: doc.isFavorite ? '★ ${doc.title}' : doc.title,
-                              subtitle: 'Writer Document',
-                              type: FileType.writer,
+                              subtitle: isWriter ? 'Writer Document' : 'Spreadsheet',
+                              type: isWriter ? FileType.writer : FileType.spreadsheet,
                               onTap: () async {
-                                await Navigator.pushNamed(context, '/writer', arguments: doc.id);
+                                await Navigator.pushNamed(context, isWriter ? '/writer' : '/spreadsheet', arguments: doc.id);
                                 _refresh();
                               },
                               onLongPress: () => _showFileOptions(context, doc),

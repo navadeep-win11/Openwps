@@ -41,6 +41,32 @@ class _CreateScreenState extends State<CreateScreen> {
     }
   }
 
+
+  Future<void> _createSpreadsheetDocument() async {
+    setState(() {
+      _isCreating = true;
+    });
+
+    try {
+      final doc = await _storage.createSpreadsheet('Untitled Spreadsheet');
+      if (mounted) {
+        Navigator.pushNamed(context, '/spreadsheet', arguments: doc.id);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create spreadsheet')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCreating = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,7 +87,7 @@ class _CreateScreenState extends State<CreateScreen> {
                 PrimaryButton(
                   label: 'Spreadsheet',
                   icon: Icons.table_chart,
-                  onPressed: () {},
+                  onPressed: _createSpreadsheetDocument,
                 ),
                 const SizedBox(height: 16),
                 PrimaryButton(

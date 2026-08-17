@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'document_storage.dart';
 import 'models/writer_document.dart';
+import 'models/spreadsheet_document.dart';
 
 class LocalDocumentStorage implements DocumentStorage {
   final Uuid _uuid = const Uuid();
@@ -164,5 +165,156 @@ class LocalDocumentStorage implements DocumentStorage {
 
     await sourceFile.copy(destFile.path);
     return destFile.path;
+  }
+
+  // ==========================================
+  // SPREADSHEET METHODS
+  // ==========================================
+
+  static const String _spreadsheetsDirName = 'openwps_spreadsheets';
+
+  Future<Directory> _getSpreadsheetsDir() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final docsDir = Directory('${directory.path}/$_spreadsheetsDirName');
+    if (!await docsDir.exists()) {
+      await docsDir.create(recursive: true);
+    }
+    return docsDir;
+  }
+
+  File _getSpreadsheetFile(Directory dir, String id) {
+    return File('${dir.path}/$id.json');
+  }
+
+  @override
+  Future<List<SpreadsheetDocument>> listSpreadsheets() async {
+    final dir = await _getSpreadsheetsDir();
+    final List<SpreadsheetDocument> documents = [];
+
+    await for (final entity in dir.list()) {
+      if (entity is File && entity.path.endsWith('.json')) {
+        try {
+          final jsonString = await entity.readAsString();
+          final jsonMap = jsonDecode(jsonString);
+          documents.add(SpreadsheetDocument.fromJson(jsonMap));
+        } catch (e) {
+          // Skip invalid files
+        }
+      }
+    }
+
+    documents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return documents;
+  }
+
+  @override
+  Future<SpreadsheetDocument> createSpreadsheet(String title) async {
+    final id = _uuid.v4();
+    final now = DateTime.now();
+
+    final document = SpreadsheetDocument(
+      id: id,
+      title: title,
+      createdAt: now,
+      updatedAt: now,
+      sheets: [
+        SheetData(
+          id: _uuid.v4(),
+          name: 'Sheet1',
+          cells: {},
+        )
+      ],
+      activeSheet: 'Sheet1',
+    );
+
+    await updateSpreadsheet(document);
+    return document;
+  }
+
+  @override
+  Future<SpreadsheetDocument?> getSpreadsheet(String id) async {
+    final dir = await _getSpreadsheetsDir();
+    final file = _getSpreadsheetFile(dir, id);
+
+    if (await file.exists()) {
+      try {
+        final jsonString = await file.readAsString();
+        return SpreadsheetDocument.fromJson(jsonDecode(jsonString));
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> updateSpreadsheet(SpreadsheetDocument document) async {
+    final dir = await _getSpreadsheetsDir();
+    final file = _getSpreadsheetFile(dir, document.id);
+
+    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final jsonString = jsonEncode(updatedDoc.toJson());
+    await file.writeAsString(jsonString);
+  }
+
+  @override
+  Future<void> deleteSpreadsheet(String id) async {
+    final dir = await _getSpreadsheetsDir();
+    final file = _getSpreadsheetFile(dir, id);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  @override
+  Future<void> renameSpreadsheet(String id, String newTitle) async {
+    final doc = await getSpreadsheet(id);
+    if (doc != null) {
+      final updatedDoc = doc.copyWith(title: newTitle);
+      await updateSpreadsheet(updatedDoc);
+    }
+  }
+
+  @override
+  Future<void> duplicateSpreadsheet(String id) async {
+    final doc = await getSpreadsheet(id);
+    if (doc != null) {
+      final newId = _uuid.v4();
+      final now = DateTime.now();
+
+      final duplicate = SpreadsheetDocument(
+        id: newId,
+        title: 'Copy of ${doc.title}',
+        createdAt: now,
+        updatedAt: now,
+        sheets: doc.sheets,
+        activeSheet: doc.activeSheet,
+        isFavorite: doc.isFavorite,
+      );
+
+      await updateSpreadsheet(duplicate);
+    }
+  }
+
+  @override
+  Future<List<SpreadsheetDocument>> searchSpreadsheets(String query) async {
+    final docs = await listSpreadsheets();
+    final lowerQuery = query.toLowerCase();
+    return docs.where((doc) => doc.title.toLowerCase().contains(lowerQuery)).toList();
+  }
+
+  @override
+  Future<void> toggleSpreadsheetFavorite(String id) async {
+    final doc = await getSpreadsheet(id);
+    if (doc != null) {
+      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      await updateSpreadsheet(updatedDoc);
+    }
+  }
+
+  @override
+  Future<List<SpreadsheetDocument>> recentSpreadsheets() async {
+    final docs = await listSpreadsheets();
+    return docs.take(5).toList();
   }
 }
