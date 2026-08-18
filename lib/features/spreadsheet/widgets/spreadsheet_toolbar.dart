@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../ai/widgets/ai_button.dart';
 
 class SpreadsheetToolbar extends StatelessWidget {
   final Map<String, dynamic> currentStyle;
@@ -7,6 +8,7 @@ class SpreadsheetToolbar extends StatelessWidget {
   final VoidCallback onDeleteRow;
   final VoidCallback onAddColumn;
   final VoidCallback onDeleteColumn;
+  final VoidCallback onAiPressed;
 
   const SpreadsheetToolbar({
     super.key,
@@ -16,6 +18,7 @@ class SpreadsheetToolbar extends StatelessWidget {
     required this.onDeleteRow,
     required this.onAddColumn,
     required this.onDeleteColumn,
+    required this.onAiPressed,
   });
 
   @override
@@ -35,6 +38,9 @@ class SpreadsheetToolbar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
           child: Row(
             children: [
+              AIButton(onPressed: onAiPressed),
+              Container(width: 1, height: 24, color: Colors.grey[400]),
+              const SizedBox(width: 8),
               _buildToggleButton(
                 icon: Icons.format_bold,
                 isActive: currentStyle['bold'] == true,

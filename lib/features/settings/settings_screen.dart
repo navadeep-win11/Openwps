@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/ai_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -21,7 +22,12 @@ class SettingsScreen extends StatelessWidget {
           ),
           ListTile(
             title: const Text('AI Preferences'),
-            onTap: () {},
+            onTap: () {
+               Navigator.push(
+                 context,
+                 MaterialPageRoute(builder: (context) => const AISettingsScreen()),
+               );
+            },
           ),
           ListTile(
             title: const Text('About OpenWPS'),

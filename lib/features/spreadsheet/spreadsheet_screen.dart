@@ -8,6 +8,7 @@ import '../../storage/models/spreadsheet_document.dart';
 import 'engine/formula_evaluator.dart';
 import 'widgets/formula_bar.dart';
 import 'widgets/spreadsheet_toolbar.dart';
+import '../ai/widgets/ai_bottom_sheet.dart';
 import 'xlsx/xlsx_exporter.dart';
 
 class SpreadsheetScreen extends StatefulWidget {
@@ -398,6 +399,7 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
       body: Column(
         children: [
           SpreadsheetToolbar(
+            onAiPressed: _openAIBottomSheet,
             currentStyle: _currentStyle,
             onStyleChanged: _applyFormatting,
             onAddRow: () {
@@ -609,6 +611,46 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
             child: const Text('Rename'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openAIBottomSheet() {
+    String? contextText;
+    if (_stateManager.currentCell != null) {
+       contextText = 'Cell Context: ${_stateManager.currentCell!.value}';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: AIBottomSheet(
+          contextText: contextText,
+          onReplaceText: (text) {
+             if (_stateManager.currentCell != null) {
+                showDialog(
+                   context: context,
+                   builder: (dialogContext) => AlertDialog(
+                      title: const Text('Apply AI Generation'),
+                      content: Text('Apply the following to the selected cell?\n\n$text'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+                        TextButton(
+                           onPressed: () {
+                              _stateManager.changeCellValue(_stateManager.currentCell!, text, force: true);
+                              Navigator.pop(dialogContext);
+                           },
+                           child: const Text('Apply'),
+                        )
+                      ],
+                   )
+                );
+             }
+          },
+        ),
       ),
     );
   }
