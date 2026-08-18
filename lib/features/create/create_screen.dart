@@ -67,6 +67,32 @@ class _CreateScreenState extends State<CreateScreen> {
     }
   }
 
+
+  Future<void> _createPresentationDocument() async {
+    setState(() {
+      _isCreating = true;
+    });
+
+    try {
+      final doc = await _storage.createPresentation('Untitled Presentation');
+      if (mounted) {
+        Navigator.pushNamed(context, '/presentation', arguments: doc.id);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create presentation')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCreating = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,7 +119,7 @@ class _CreateScreenState extends State<CreateScreen> {
                 PrimaryButton(
                   label: 'Presentation',
                   icon: Icons.slideshow,
-                  onPressed: () {},
+                  onPressed: _createPresentationDocument,
                 ),
                 const SizedBox(height: 16),
                 SecondaryButton(

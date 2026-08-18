@@ -13,5 +13,5 @@
 | `openwps_ai_assistant` | `AiScreen` | `CustomAppBar` | Temporary | Phase 4 |
 | `openwps_writer_editor` | `WriterScreen` | `flutter_quill`, `WriterToolbar` | Implemented | Phase 2 |
 | `openwps_spreadsheet_editor_1` | `SpreadsheetScreen` | `PlutoGrid`, `SpreadsheetToolbar` | Implemented | Phase 3 |
-| `openwps_presentation_editor_1` | Not yet implemented | N/A | Pending | Future |
+| `openwps_presentation_editor_1` | `PresentationScreen` | `PresentationCanvas`, `SlideSorter` | Implemented | Phase 4 |
 | `openwps_pdf_reader` | Not yet implemented | N/A | Pending | Future |
