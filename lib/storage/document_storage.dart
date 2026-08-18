@@ -1,5 +1,6 @@
 import 'models/writer_document.dart';
 import 'models/spreadsheet_document.dart';
+import 'models/pdf_document.dart';
 
 abstract class DocumentStorage {
   // Writer methods
@@ -26,4 +27,14 @@ abstract class DocumentStorage {
   Future<List<SpreadsheetDocument>> searchSpreadsheets(String query);
   Future<void> toggleSpreadsheetFavorite(String id);
   Future<List<SpreadsheetDocument>> recentSpreadsheets();
+
+  // PDF methods
+  Future<List<PdfDocument>> listPdfDocuments();
+  Future<PdfDocument> importPdfDocument(String originalFilePath, String title);
+  Future<PdfDocument?> getPdfDocument(String id);
+  Future<void> updatePdfDocument(PdfDocument document);
+  Future<void> deletePdfDocument(String id);
+  Future<void> renamePdfDocument(String id, String newTitle);
+  Future<void> togglePdfFavorite(String id);
+  Future<List<PdfDocument>> recentPdfDocuments();
 }

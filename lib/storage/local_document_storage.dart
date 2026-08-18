@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'document_storage.dart';
 import 'models/writer_document.dart';
 import 'models/spreadsheet_document.dart';
+import 'models/pdf_document.dart';
 
 class LocalDocumentStorage implements DocumentStorage {
   final Uuid _uuid = const Uuid();
@@ -315,6 +316,137 @@ class LocalDocumentStorage implements DocumentStorage {
   @override
   Future<List<SpreadsheetDocument>> recentSpreadsheets() async {
     final docs = await listSpreadsheets();
+    return docs.take(5).toList();
+  }
+
+  // ==========================================
+  // PDF METHODS
+  // ==========================================
+
+  static const String _pdfsDirName = 'openwps_pdfs';
+
+  Future<Directory> _getPdfsDir() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final docsDir = Directory('${directory.path}/$_pdfsDirName');
+    if (!await docsDir.exists()) {
+      await docsDir.create(recursive: true);
+    }
+    return docsDir;
+  }
+
+  File _getPdfFile(Directory dir, String id) {
+    return File('${dir.path}/$id.json');
+  }
+
+  @override
+  Future<List<PdfDocument>> listPdfDocuments() async {
+    final dir = await _getPdfsDir();
+    final List<PdfDocument> documents = [];
+
+    await for (final entity in dir.list()) {
+      if (entity is File && entity.path.endsWith('.json')) {
+        try {
+          final jsonString = await entity.readAsString();
+          final jsonMap = jsonDecode(jsonString);
+          documents.add(PdfDocument.fromJson(jsonMap));
+        } catch (e) {
+          // Skip invalid files
+        }
+      }
+    }
+
+    documents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return documents;
+  }
+
+  @override
+  Future<PdfDocument> importPdfDocument(String originalFilePath, String title) async {
+    final id = _uuid.v4();
+    final now = DateTime.now();
+
+    final dir = await _getPdfsDir();
+    final originalFile = File(originalFilePath);
+    final extension = originalFilePath.split('.').last;
+    final newPdfPath = '${dir.path}/$id.$extension';
+
+    await originalFile.copy(newPdfPath);
+
+    final document = PdfDocument(
+      id: id,
+      title: title,
+      filePath: newPdfPath,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await updatePdfDocument(document);
+    return document;
+  }
+
+  @override
+  Future<PdfDocument?> getPdfDocument(String id) async {
+    final dir = await _getPdfsDir();
+    final file = _getPdfFile(dir, id);
+
+    if (await file.exists()) {
+      try {
+        final jsonString = await file.readAsString();
+        return PdfDocument.fromJson(jsonDecode(jsonString));
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> updatePdfDocument(PdfDocument document) async {
+    final dir = await _getPdfsDir();
+    final file = _getPdfFile(dir, document.id);
+
+    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final jsonString = jsonEncode(updatedDoc.toJson());
+    await file.writeAsString(jsonString);
+  }
+
+  @override
+  Future<void> deletePdfDocument(String id) async {
+    final doc = await getPdfDocument(id);
+    if(doc != null) {
+      final pdfFile = File(doc.filePath);
+      if(await pdfFile.exists()){
+        await pdfFile.delete();
+      }
+    }
+
+    final dir = await _getPdfsDir();
+    final file = _getPdfFile(dir, id);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  @override
+  Future<void> renamePdfDocument(String id, String newTitle) async {
+    final doc = await getPdfDocument(id);
+    if (doc != null) {
+      final updatedDoc = doc.copyWith(title: newTitle);
+      await updatePdfDocument(updatedDoc);
+    }
+  }
+
+  @override
+  Future<void> togglePdfFavorite(String id) async {
+    final doc = await getPdfDocument(id);
+    if (doc != null) {
+      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      await updatePdfDocument(updatedDoc);
+    }
+  }
+
+  @override
+  Future<List<PdfDocument>> recentPdfDocuments() async {
+    final docs = await listPdfDocuments();
     return docs.take(5).toList();
   }
 }

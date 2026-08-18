@@ -1,0 +1,392 @@
+import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
+import '../../../storage/models/pdf_document.dart' as model;
+import '../../../storage/document_storage.dart';
+import '../widgets/annotation_layer.dart';
+import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
+
+class PdfViewerEngine extends StatefulWidget {
+  final model.PdfDocument document;
+  final DocumentStorage storage;
+
+  const PdfViewerEngine({
+    super.key,
+    required this.document,
+    required this.storage,
+  });
+
+  @override
+  State<PdfViewerEngine> createState() => _PdfViewerEngineState();
+}
+
+class _PdfViewerEngineState extends State<PdfViewerEngine> {
+  final PdfViewerController _controller = PdfViewerController();
+  late PdfTextSearcher _textSearcher;
+
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  PdfTextSelection? _currentSelection;
+
+  model.PdfAnnotationType? _currentTool; // null = pan/select, not drawing
+  final Color _currentColor = Colors.red;
+
+  late model.PdfDocument _currentDoc;
+  int _currentPage = 1;
+  int _totalPages = 0;
+
+  final Uuid _uuid = const Uuid();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentDoc = widget.document;
+    _textSearcher = PdfTextSearcher(_controller);
+
+    _textSearcher.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _textSearcher.dispose();
+    super.dispose();
+  }
+
+  void _undoAnnotation() {
+    if (_currentDoc.annotations.isNotEmpty) {
+      setState(() {
+        _currentDoc.annotations.removeLast();
+        _saveAnnotations();
+      });
+    }
+  }
+
+  void _clearAnnotations() {
+    if (_currentDoc.annotations.isNotEmpty) {
+      setState(() {
+        _currentDoc.annotations.clear();
+        _saveAnnotations();
+      });
+    }
+  }
+
+  Future<void> _saveAnnotations() async {
+    await widget.storage.updatePdfDocument(_currentDoc);
+  }
+
+  void _addAnnotation(model.PdfAnnotation annotation) {
+    setState(() {
+      _currentDoc.annotations.add(annotation);
+      _saveAnnotations();
+    });
+  }
+
+  void _removeAnnotation(String id) {
+    setState(() {
+      _currentDoc.annotations.removeWhere((a) => a.id == id);
+      _saveAnnotations();
+    });
+  }
+
+  void _highlightSelection() async {
+     if (_currentSelection == null) return;
+
+     final selectionInfo = _currentSelection!;
+
+     final textRanges = await selectionInfo.getSelectedTextRanges();
+     for (final range in textRanges) {
+         final pageNumber = range.pageNumber;
+         final bounds = range.bounds;
+
+         final newId = _uuid.v4();
+         final annotation = model.PdfAnnotation(
+             id: newId,
+             pageNumber: pageNumber,
+             type: model.PdfAnnotationType.highlight,
+             position: Offset(bounds.left, bounds.top),
+             size: Size(bounds.width, bounds.height),
+             color: Colors.yellow,
+             opacity: 0.3,
+             content: '${bounds.left},${bounds.top};${bounds.right},${bounds.top};${bounds.right},${bounds.bottom};${bounds.left},${bounds.bottom}',
+             createdAt: DateTime.now(),
+             updatedAt: DateTime.now(),
+         );
+         _addAnnotation(annotation);
+     }
+
+     _controller.textSelectionDelegate.clearTextSelection();
+     _currentSelection = null;
+     setState(() {});
+  }
+
+  void _copySelection() async {
+    if (_currentSelection == null) return;
+
+    final text = await _currentSelection!.getSelectedText();
+
+    if (text.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+      }
+    }
+
+    _controller.textSelectionDelegate.clearTextSelection();
+    _currentSelection = null;
+    setState(() {});
+  }
+
+  void _askAi() async {
+    if (_currentSelection == null) return;
+
+    final text = await _currentSelection!.getSelectedText();
+
+    if (text.isNotEmpty) {
+       if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sent to AI: "${text.substring(0, text.length > 20 ? 20 : text.length)}..."')));
+       }
+    }
+
+    _controller.textSelectionDelegate.clearTextSelection();
+    _currentSelection = null;
+    setState(() {});
+  }
+
+  Widget _buildTopToolbar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.search, color: _isSearching ? Theme.of(context).primaryColor : null),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                  _searchQuery = '';
+                }
+              });
+            },
+          ),
+          const Spacer(),
+          IconButton(
+            icon: Icon(Icons.edit, color: _currentTool == model.PdfAnnotationType.pen ? Theme.of(context).primaryColor : null),
+            onPressed: () {
+              setState(() {
+                _currentTool = _currentTool == model.PdfAnnotationType.pen ? null : model.PdfAnnotationType.pen;
+              });
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.highlight, color: _currentTool == model.PdfAnnotationType.highlight ? Theme.of(context).primaryColor : null),
+            onPressed: () {
+              setState(() {
+                _currentTool = _currentTool == model.PdfAnnotationType.highlight ? null : model.PdfAnnotationType.highlight;
+              });
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.note_add, color: _currentTool == model.PdfAnnotationType.note ? Theme.of(context).primaryColor : null),
+            onPressed: () {
+              setState(() {
+                _currentTool = _currentTool == model.PdfAnnotationType.note ? null : model.PdfAnnotationType.note;
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.undo),
+            tooltip: 'Undo Last Annotation',
+            onPressed: _currentDoc.annotations.isNotEmpty ? _undoAnnotation : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            tooltip: 'Clear All Annotations',
+            onPressed: _currentDoc.annotations.isNotEmpty ? _clearAnnotations : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: 'Search...',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (value) {
+                if (value.isNotEmpty) {
+                  _searchQuery = value;
+                  _textSearcher.startTextSearch(_searchQuery);
+                }
+              },
+            ),
+          ),
+          if (_textSearcher.hasMatches) ...[
+             const SizedBox(width: 8),
+             Text('${_textSearcher.currentIndex! + 1}/${_textSearcher.matches.length}'),
+             IconButton(
+               icon: const Icon(Icons.keyboard_arrow_up),
+               onPressed: () => _textSearcher.goToPrevMatch(),
+             ),
+             IconButton(
+               icon: const Icon(Icons.keyboard_arrow_down),
+               onPressed: () => _textSearcher.goToNextMatch(),
+             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomToolbar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.navigate_before),
+            onPressed: _currentPage > 1 ? () {
+              _controller.goToPage(pageNumber: _currentPage - 1);
+            } : null,
+          ),
+          Text('$_currentPage / $_totalPages'),
+          IconButton(
+            icon: const Icon(Icons.navigate_next),
+            onPressed: _currentPage < _totalPages ? () {
+              _controller.goToPage(pageNumber: _currentPage + 1);
+            } : null,
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.zoom_out),
+            onPressed: () {
+              _controller.zoomDown();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.zoom_in),
+            onPressed: () {
+              _controller.zoomUp();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionToolbar() {
+    if (_currentSelection == null) return const SizedBox.shrink();
+
+    return Positioned(
+      top: 60, // Arbitrary position for toolbar below app bar
+      left: 16,
+      right: 16,
+      child: Card(
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                 TextButton.icon(onPressed: _copySelection, icon: const Icon(Icons.copy), label: const Text('Copy')),
+                 TextButton.icon(onPressed: _highlightSelection, icon: const Icon(Icons.highlight), label: const Text('Highlight')),
+                 TextButton.icon(onPressed: _askAi, icon: const Icon(Icons.auto_awesome), label: const Text('Ask AI')),
+                 IconButton(icon: const Icon(Icons.close), onPressed: () {
+                   _controller.textSelectionDelegate.clearTextSelection();
+                   setState(() {
+                      _currentSelection = null;
+                   });
+                 })
+              ],
+            )
+          )
+        )
+      )
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            _buildTopToolbar(),
+            if (_isSearching) _buildSearchBar(),
+            Expanded(
+              child: PdfViewer.file(
+                widget.document.filePath,
+                controller: _controller,
+                params: PdfViewerParams(
+                  textSelectionParams: PdfTextSelectionParams(
+                    enabled: _currentTool == null,
+                    onTextSelectionChange: (selection) {
+                       setState(() {
+                          _currentSelection = selection;
+                       });
+                    },
+                  ),
+                  onViewerReady: (document, controller) {
+                    setState(() {
+                      _totalPages = document.pages.length;
+                      // Update document page count in storage
+                      if (_currentDoc.pageCount != _totalPages) {
+                        _currentDoc = _currentDoc.copyWith(pageCount: _totalPages);
+                        _saveAnnotations();
+                      }
+                    });
+                  },
+                  onPageChanged: (pageNumber) {
+                    setState(() {
+                      if(pageNumber != null) {
+                        _currentPage = pageNumber;
+                      }
+                    });
+                  },
+                  viewerOverlayBuilder: (context, size, [dynamic buildSearchTextHighlight]) => [
+                    if(buildSearchTextHighlight != null)
+                      buildSearchTextHighlight(context, size),
+                    AnnotationLayer(
+                      document: _currentDoc,
+                      pageNumber: _currentPage,
+                      currentTool: _currentTool,
+                      currentColor: _currentColor,
+                      onAnnotationAdded: _addAnnotation,
+                      onAnnotationRemoved: _removeAnnotation,
+                      pdfController: _controller,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            _buildBottomToolbar(),
+          ],
+        ),
+        _buildSelectionToolbar(),
+      ],
+    );
+  }
+}
