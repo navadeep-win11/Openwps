@@ -5,6 +5,7 @@ import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/presentation_document.dart';
 import 'widgets/presentation_canvas.dart';
+import '../ai/widgets/ai_bottom_sheet.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'widgets/presentation_toolbar.dart';
@@ -196,6 +197,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
       body: Column(
         children: [
           PresentationToolbar(
+            onAiPressed: _openAIBottomSheet,
             onAddText: _addTextElement,
             onAddImage: _addImageElement,
             onBringForward: _bringForward,
@@ -229,6 +231,65 @@ class _PresentationScreenState extends State<PresentationScreen> {
             onSlideOptions: _showSlideOptions,
           ),
         ],
+      ),
+    );
+  }
+
+  void _openAIBottomSheet() {
+    String? contextText;
+    if (_selectedElementId != null && _document != null) {
+      final slide = _document!.slides.firstWhere((s) => s.id == _document!.activeSlide);
+      try {
+        final element = slide.elements.firstWhere((e) => e.id == _selectedElementId);
+        if (element.type == 'text') {
+           contextText = 'Slide Text Context: ${element.content}';
+        }
+      } catch (_) {}
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: AIBottomSheet(
+          contextText: contextText,
+          onInsertText: (text) {
+             _commitHistory();
+             if (_document == null) return;
+             final slide = _document!.slides.firstWhere((s) => s.id == _document!.activeSlide);
+
+             final newElement = SlideElement(
+               id: const Uuid().v4(),
+               type: 'text',
+               x: 100,
+               y: 100,
+               width: 400,
+               height: 200,
+               content: text,
+               style: {'fontSize': 32.0, 'color': '#000000'},
+               zIndex: slide.elements.length,
+             );
+
+             setState(() {
+               slide.elements.add(newElement);
+               _selectedElementId = newElement.id;
+             });
+             _onDocumentChanged();
+          },
+          onReplaceText: contextText != null ? (text) {
+             _commitHistory();
+             if (_document == null || _selectedElementId == null) return;
+             final slide = _document!.slides.firstWhere((s) => s.id == _document!.activeSlide);
+             final element = slide.elements.firstWhere((e) => e.id == _selectedElementId);
+
+             setState(() {
+                element.content = text;
+             });
+             _onDocumentChanged();
+          } : null,
+        ),
       ),
     );
   }

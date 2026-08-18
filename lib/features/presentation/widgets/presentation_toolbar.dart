@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../ai/widgets/ai_button.dart';
 
 class PresentationToolbar extends StatelessWidget {
   final VoidCallback onAddText;
@@ -8,11 +9,12 @@ class PresentationToolbar extends StatelessWidget {
   final VoidCallback onDeleteElement;
   final bool hasSelection;
   final Map<String, dynamic> currentStyle;
-  final Function(String, dynamic) onStyleChanged;
+  final Function(String key, dynamic value) onStyleChanged;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final bool canUndo;
   final bool canRedo;
+  final VoidCallback onAiPressed;
 
   const PresentationToolbar({
     super.key,
@@ -28,6 +30,7 @@ class PresentationToolbar extends StatelessWidget {
     required this.onRedo,
     required this.canUndo,
     required this.canRedo,
+    required this.onAiPressed,
   });
 
   @override
@@ -36,7 +39,7 @@ class PresentationToolbar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,
         border: Border(
-          bottom: BorderSide(
+          top: BorderSide(
             color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
@@ -47,6 +50,9 @@ class PresentationToolbar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
           child: Row(
             children: [
+              AIButton(onPressed: onAiPressed),
+              Container(width: 1, height: 24, color: Colors.grey[400]),
+              const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.undo),
                 onPressed: canUndo ? onUndo : null,
@@ -73,67 +79,48 @@ class PresentationToolbar extends StatelessWidget {
               const SizedBox(width: 8),
               Container(width: 1, height: 24, color: Colors.grey[400]),
               const SizedBox(width: 8),
-              _buildToggleButton(
-                icon: Icons.format_bold,
-                isActive: currentStyle['bold'] == true,
-                onPressed: hasSelection ? () => onStyleChanged('bold', !(currentStyle['bold'] == true)) : null,
-              ),
-              _buildToggleButton(
-                icon: Icons.format_italic,
-                isActive: currentStyle['italic'] == true,
-                onPressed: hasSelection ? () => onStyleChanged('italic', !(currentStyle['italic'] == true)) : null,
-              ),
-              _buildToggleButton(
-                icon: Icons.format_underlined,
-                isActive: currentStyle['underline'] == true,
-                onPressed: hasSelection ? () => onStyleChanged('underline', !(currentStyle['underline'] == true)) : null,
-              ),
-              _buildColorButton(
-                context,
-                icon: Icons.format_color_text,
-                colorValue: currentStyle['color'],
-                onColorSelected: hasSelection ? (color) => onStyleChanged('color', color) : null,
-              ),
-              const SizedBox(width: 8),
-              Container(width: 1, height: 24, color: Colors.grey[400]),
-              const SizedBox(width: 8),
-              _buildToggleButton(
-                icon: Icons.format_align_left,
-                isActive: currentStyle['align'] == 'left' || currentStyle['align'] == null,
-                onPressed: hasSelection ? () => onStyleChanged('align', 'left') : null,
-              ),
-              _buildToggleButton(
-                icon: Icons.format_align_center,
-                isActive: currentStyle['align'] == 'center',
-                onPressed: hasSelection ? () => onStyleChanged('align', 'center') : null,
-              ),
-              _buildToggleButton(
-                icon: Icons.format_align_right,
-                isActive: currentStyle['align'] == 'right',
-                onPressed: hasSelection ? () => onStyleChanged('align', 'right') : null,
-              ),
-              const SizedBox(width: 8),
-              Container(width: 1, height: 24, color: Colors.grey[400]),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.flip_to_front),
-                onPressed: hasSelection ? onBringForward : null,
-                tooltip: 'Bring Forward',
-              ),
-              IconButton(
-                icon: const Icon(Icons.flip_to_back),
-                onPressed: hasSelection ? onSendBackward : null,
-                tooltip: 'Send Backward',
-              ),
-              const SizedBox(width: 8),
-              Container(width: 1, height: 24, color: Colors.grey[400]),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: hasSelection ? onDeleteElement : null,
-                tooltip: 'Delete Element',
-                color: Colors.red,
-              ),
+              if (hasSelection) ...[
+                _buildToggleButton(
+                  icon: Icons.format_bold,
+                  isActive: currentStyle['bold'] == true,
+                  onPressed: () => onStyleChanged('bold', !(currentStyle['bold'] == true)),
+                ),
+                _buildToggleButton(
+                  icon: Icons.format_italic,
+                  isActive: currentStyle['italic'] == true,
+                  onPressed: () => onStyleChanged('italic', !(currentStyle['italic'] == true)),
+                ),
+                 _buildColorButton(
+                  context,
+                  icon: Icons.format_color_text,
+                  colorValue: currentStyle['color'],
+                  onColorSelected: (color) => onStyleChanged('color', color),
+                ),
+                const SizedBox(width: 8),
+                Container(width: 1, height: 24, color: Colors.grey[400]),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.flip_to_front),
+                  onPressed: onBringForward,
+                  tooltip: 'Bring Forward',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.flip_to_back),
+                  onPressed: onSendBackward,
+                  tooltip: 'Send Backward',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red,
+                  onPressed: onDeleteElement,
+                  tooltip: 'Delete',
+                ),
+              ] else ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text('Select an element to edit'),
+                ),
+              ],
             ],
           ),
         ),
@@ -141,7 +128,7 @@ class PresentationToolbar extends StatelessWidget {
     );
   }
 
-  Widget _buildToggleButton({required IconData icon, required bool isActive, required VoidCallback? onPressed}) {
+  Widget _buildToggleButton({required IconData icon, required bool isActive, required VoidCallback onPressed}) {
     return IconButton(
       icon: Icon(icon),
       color: isActive ? Colors.blue : null,
@@ -152,7 +139,7 @@ class PresentationToolbar extends StatelessWidget {
     );
   }
 
-  Widget _buildColorButton(BuildContext context, {required IconData icon, required String? colorValue, required Function(String?)? onColorSelected}) {
+   Widget _buildColorButton(BuildContext context, {required IconData icon, required String? colorValue, required Function(String?) onColorSelected}) {
     Color? displayColor;
     if (colorValue != null) {
        try {
@@ -173,15 +160,16 @@ class PresentationToolbar extends StatelessWidget {
           )
         ],
       ),
-      onPressed: onColorSelected != null ? () {
+      onPressed: () {
+        // Mock color selection - cycle through basics for this milestone
         if (colorValue == null || colorValue == '#000000') {
-           onColorSelected('#FF0000');
+           onColorSelected('#FF0000'); // red
         } else if (colorValue == '#FF0000') {
-           onColorSelected('#0000FF');
+           onColorSelected('#0000FF'); // blue
         } else {
-           onColorSelected(null);
+           onColorSelected(null); // clear
         }
-      } : null,
+      },
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       padding: EdgeInsets.zero,
       splashRadius: 20,

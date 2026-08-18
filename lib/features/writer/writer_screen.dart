@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../core/widgets/bottom_sheet.dart';
 import 'docx/docx_exporter.dart';
+import '../ai/widgets/ai_bottom_sheet.dart';
 import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
@@ -205,6 +206,42 @@ class _WriterScreenState extends State<WriterScreen> {
     );
   }
 
+  void _openAIBottomSheet() {
+    if (_controller == null) return;
+
+    final selection = _controller!.selection;
+    String? contextText;
+
+    if (!selection.isCollapsed) {
+      contextText = _controller!.document.toPlainText().substring(selection.baseOffset, selection.extentOffset);
+    } else {
+      contextText = _controller!.document.toPlainText();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: AIBottomSheet(
+          contextText: contextText,
+          onInsertText: (text) {
+             final index = _controller!.selection.baseOffset;
+             _controller!.document.insert(index, text);
+             _controller!.updateSelection(TextSelection.collapsed(offset: index + text.length), ChangeSource.local);
+          },
+          onReplaceText: selection.isCollapsed ? null : (text) {
+             final index = selection.baseOffset;
+             final length = selection.extentOffset - index;
+             _controller!.replaceText(index, length, text, null);
+             _controller!.updateSelection(TextSelection.collapsed(offset: index + text.length), ChangeSource.local);
+          },
+        ),
+      ),
+    );
+  }
+
   void _showMoreMenu(BuildContext context) {
     showAppBottomSheet(
       context: context,
@@ -320,7 +357,10 @@ class _WriterScreenState extends State<WriterScreen> {
               ),
             ),
           ),
-          WriterToolbar(controller: _controller!),
+          WriterToolbar(
+            controller: _controller!,
+            onAiPressed: _openAIBottomSheet,
+          ),
         ],
       ),
     );
