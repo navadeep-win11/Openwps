@@ -29,7 +29,7 @@ class _PdfScreenState extends State<PdfScreen> {
 
   void _openAIBottomSheet() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('PDF contextual AI selection integration is deferred because the locked pdfrx 2.4.7 API does not expose the required selection functionality.'))
+      const SnackBar(content: Text('PDF contextual AI selection integration is deferred because the locked pdfrx 2.4.7 API does not expose the required selection functionality in the current Flutter environment.'))
     );
   }
 
