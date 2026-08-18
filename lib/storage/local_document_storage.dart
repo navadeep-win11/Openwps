@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'document_storage.dart';
 import 'models/writer_document.dart';
 import 'models/spreadsheet_document.dart';
+import 'models/presentation_document.dart';
 import 'models/pdf_document.dart';
 
 class LocalDocumentStorage implements DocumentStorage {
@@ -316,6 +317,170 @@ class LocalDocumentStorage implements DocumentStorage {
   @override
   Future<List<SpreadsheetDocument>> recentSpreadsheets() async {
     final docs = await listSpreadsheets();
+    return docs.take(5).toList();
+  }
+
+  // ==========================================
+  // PRESENTATION METHODS
+  // ==========================================
+
+  static const String _presentationsDirName = 'openwps_presentations';
+
+  Future<Directory> _getPresentationsDir() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final docsDir = Directory('${directory.path}/$_presentationsDirName');
+    if (!await docsDir.exists()) {
+      await docsDir.create(recursive: true);
+    }
+    return docsDir;
+  }
+
+  File _getPresentationFile(Directory dir, String id) {
+    return File('${dir.path}/$id.json');
+  }
+
+  @override
+  Future<List<PresentationDocument>> listPresentations() async {
+    final dir = await _getPresentationsDir();
+    final List<PresentationDocument> documents = [];
+
+    await for (final entity in dir.list()) {
+      if (entity is File && entity.path.endsWith('.json')) {
+        try {
+          final jsonString = await entity.readAsString();
+          final jsonMap = jsonDecode(jsonString);
+          documents.add(PresentationDocument.fromJson(jsonMap));
+        } catch (e) {
+          // Skip invalid files
+        }
+      }
+    }
+
+    documents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return documents;
+  }
+
+  @override
+  Future<PresentationDocument> createPresentation(String title) async {
+    final id = _uuid.v4();
+    final now = DateTime.now();
+
+    final document = PresentationDocument(
+      id: id,
+      title: title,
+      createdAt: now,
+      updatedAt: now,
+      slides: [
+        SlideData(
+          id: _uuid.v4(),
+          name: 'Slide 1',
+          elements: [
+            SlideElement(
+              id: _uuid.v4(),
+              type: 'text',
+              x: 100, y: 100, width: 800, height: 150, rotation: 0,
+              content: 'Title', style: {}, zIndex: 0,
+            ),
+          ],
+        )
+      ],
+      activeSlide: 'Slide 1',
+    );
+
+    await updatePresentation(document);
+    return document;
+  }
+
+  @override
+  Future<PresentationDocument?> getPresentation(String id) async {
+    final dir = await _getPresentationsDir();
+    final file = _getPresentationFile(dir, id);
+
+    if (await file.exists()) {
+      try {
+        final jsonString = await file.readAsString();
+        return PresentationDocument.fromJson(jsonDecode(jsonString));
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<void> updatePresentation(PresentationDocument document) async {
+    final dir = await _getPresentationsDir();
+    final file = _getPresentationFile(dir, document.id);
+
+    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final jsonString = jsonEncode(updatedDoc.toJson());
+    await file.writeAsString(jsonString);
+  }
+
+  @override
+  Future<void> deletePresentation(String id) async {
+    final dir = await _getPresentationsDir();
+    final file = _getPresentationFile(dir, id);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  @override
+  Future<void> renamePresentation(String id, String newTitle) async {
+    final doc = await getPresentation(id);
+    if (doc != null) {
+      final updatedDoc = doc.copyWith(title: newTitle);
+      await updatePresentation(updatedDoc);
+    }
+  }
+
+  @override
+  Future<void> duplicatePresentation(String id) async {
+    final doc = await getPresentation(id);
+    if (doc != null) {
+      final newId = _uuid.v4();
+      final now = DateTime.now();
+
+      final duplicate = PresentationDocument(
+        id: newId,
+        title: 'Copy of ${doc.title}',
+        createdAt: now,
+        updatedAt: now,
+        slides: doc.slides.map((s) {
+           return SlideData(
+             id: _uuid.v4(),
+             name: s.name,
+             elements: s.elements.map((e) => e.copy()).toList()
+           );
+        }).toList(),
+        activeSlide: doc.activeSlide,
+        isFavorite: doc.isFavorite,
+      );
+
+      await updatePresentation(duplicate);
+    }
+  }
+
+  @override
+  Future<List<PresentationDocument>> searchPresentations(String query) async {
+    final docs = await listPresentations();
+    final lowerQuery = query.toLowerCase();
+    return docs.where((doc) => doc.title.toLowerCase().contains(lowerQuery)).toList();
+  }
+
+  @override
+  Future<void> togglePresentationFavorite(String id) async {
+    final doc = await getPresentation(id);
+    if (doc != null) {
+      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      await updatePresentation(updatedDoc);
+    }
+  }
+
+  @override
+  Future<List<PresentationDocument>> recentPresentations() async {
+    final docs = await listPresentations();
     return docs.take(5).toList();
   }
 
