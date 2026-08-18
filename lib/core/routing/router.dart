@@ -11,6 +11,7 @@ import '../../features/templates/templates_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/writer/writer_screen.dart';
 import '../../features/spreadsheet/spreadsheet_screen.dart';
+import '../../features/presentation/presentation_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -37,6 +38,12 @@ class AppRouter {
           return _errorRoute('Document ID is required');
         }
         return MaterialPageRoute(builder: (_) => SpreadsheetScreen(documentId: documentId));
+      case '/presentation':
+        final documentId = settings.arguments as String?;
+        if (documentId == null) {
+          return _errorRoute('Document ID is required');
+        }
+        return MaterialPageRoute(builder: (_) => PresentationScreen(documentId: documentId));
       default:
         return _errorRoute('No route defined for ${settings.name}');
     }

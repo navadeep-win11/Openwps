@@ -8,6 +8,7 @@ import '../../storage/document_storage.dart';
 import '../../storage/local_document_storage.dart';
 import '../../storage/models/writer_document.dart';
 import '../../storage/models/spreadsheet_document.dart';
+import '../../storage/models/presentation_document.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:io';
 import '../writer/docx/docx_importer.dart';
@@ -73,10 +74,12 @@ class _FilesScreenState extends State<FilesScreen> {
       _docsFuture = Future.wait([
         _storage.listDocuments(),
         _storage.listSpreadsheets(),
+        _storage.listPresentations(),
       ]).then((results) {
         final List<dynamic> combined = [];
         combined.addAll(results[0]);
         combined.addAll(results[1]);
+        combined.addAll(results[2]);
         combined.sort((a, b) => (b.updatedAt as DateTime).compareTo(a.updatedAt as DateTime));
         return combined;
       });
@@ -98,6 +101,8 @@ class _FilesScreenState extends State<FilesScreen> {
                 await _storage.toggleFavorite(doc.id);
               } else if (doc is SpreadsheetDocument) {
                 await _storage.toggleSpreadsheetFavorite(doc.id);
+              } else if (doc is PresentationDocument) {
+                await _storage.togglePresentationFavorite(doc.id);
               }
               _refresh();
             },
@@ -119,6 +124,8 @@ class _FilesScreenState extends State<FilesScreen> {
                 await _storage.duplicateDocument(doc.id);
               } else if (doc is SpreadsheetDocument) {
                 await _storage.duplicateSpreadsheet(doc.id);
+              } else if (doc is PresentationDocument) {
+                await _storage.duplicatePresentation(doc.id);
               }
               _refresh();
             },
@@ -152,6 +159,8 @@ class _FilesScreenState extends State<FilesScreen> {
               await _storage.deleteDocument(doc.id);
             } else if (doc is SpreadsheetDocument) {
               await _storage.deleteSpreadsheet(doc.id);
+            } else if (doc is PresentationDocument) {
+              await _storage.deletePresentation(doc.id);
             }
             if (!context.mounted) return;
             Navigator.pop(context);
@@ -186,6 +195,8 @@ class _FilesScreenState extends State<FilesScreen> {
                    await _storage.renameDocument(doc.id, newTitle);
                 } else if (doc is SpreadsheetDocument) {
                    await _storage.renameSpreadsheet(doc.id, newTitle);
+                } else if (doc is PresentationDocument) {
+                   await _storage.renamePresentation(doc.id, newTitle);
                 }
                 if (!dialogContext.mounted) return;
                 Navigator.pop(dialogContext);
@@ -256,13 +267,30 @@ class _FilesScreenState extends State<FilesScreen> {
                           itemCount: docs.length,
                                                     itemBuilder: (context, index) {
                             final doc = docs[index];
-                            final isWriter = doc is WriterDocument;
+                            String subtitle = 'Document';
+                            FileType type = FileType.unknown;
+                            String route = '/';
+
+                            if (doc is WriterDocument) {
+                               subtitle = 'Writer Document';
+                               type = FileType.writer;
+                               route = '/writer';
+                            } else if (doc is SpreadsheetDocument) {
+                               subtitle = 'Spreadsheet';
+                               type = FileType.spreadsheet;
+                               route = '/spreadsheet';
+                            } else if (doc is PresentationDocument) {
+                               subtitle = 'Presentation';
+                               type = FileType.presentation;
+                               route = '/presentation';
+                            }
+
                             return FileListItem(
                               title: doc.isFavorite ? '★ ${doc.title}' : doc.title,
-                              subtitle: isWriter ? 'Writer Document' : 'Spreadsheet',
-                              type: isWriter ? FileType.writer : FileType.spreadsheet,
+                              subtitle: subtitle,
+                              type: type,
                               onTap: () async {
-                                await Navigator.pushNamed(context, isWriter ? '/writer' : '/spreadsheet', arguments: doc.id);
+                                await Navigator.pushNamed(context, route, arguments: doc.id);
                                 _refresh();
                               },
                               onLongPress: () => _showFileOptions(context, doc),

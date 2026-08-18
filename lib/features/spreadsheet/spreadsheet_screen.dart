@@ -311,57 +311,6 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
 
     if (_document == null) {
       return Scaffold(
-
-      bottomNavigationBar: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: _addSheet,
-              tooltip: 'Add Sheet',
-            ),
-            Expanded(
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _document!.sheets.length,
-                itemBuilder: (context, index) {
-                  final sheet = _document!.sheets[index];
-                  final isActive = sheet.id == _document!.activeSheet;
-                  return InkWell(
-                    onTap: () => _switchSheet(sheet.id),
-                    onLongPress: () => _showSheetOptions(context, sheet),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        sheet.name,
-                        style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-
         appBar: AppBar(title: const Text('Error')),
         body: const Center(child: Text('Spreadsheet not found')),
       );
