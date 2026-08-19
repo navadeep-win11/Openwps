@@ -59,6 +59,7 @@ dependencies:
   http: ^1.6.0
   flutter_secure_storage: ^10.3.1
   pdfrx: 2.4.7
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

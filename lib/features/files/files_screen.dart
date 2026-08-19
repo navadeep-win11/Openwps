@@ -11,6 +11,7 @@ import '../../storage/models/spreadsheet_document.dart';
 import '../../storage/models/presentation_document.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 import '../writer/docx/docx_importer.dart';
 
 class FilesScreen extends StatefulWidget {
@@ -28,6 +29,34 @@ class _FilesScreenState extends State<FilesScreen> {
   void initState() {
     super.initState();
     _refresh();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    if (await Permission.manageExternalStorage.isGranted) return;
+
+    if (mounted) {
+      showAppDialog(
+        context: context,
+        title: 'All Files Access Required',
+        content: const Text('OpenWPS needs access to manage external storage to manage and browse local files outside of its cache.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Not Now'),
+          ),
+          TextButton(
+            onPressed: () {
+              Permission.manageExternalStorage.request().then((_) {
+                if (!mounted) return;
+                Navigator.pop(context);
+              });
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      );
+    }
   }
 
     Future<void> _importDocx() async {
