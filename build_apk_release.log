@@ -135,3 +135,5 @@ Try `dart pub outdated` for more information.
 Compiling bin/build_tool_runner.dart to kernel file bin/build_tool_runner.dill.
 INFO: Precompiled binaries are disabled
 INFO: Building super_native_extensions for armv7-linux-androideabi
+INFO: Building super_native_extensions for aarch64-linux-android
+INFO: Building super_native_extensions for x86_64-linux-android
