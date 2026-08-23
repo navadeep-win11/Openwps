@@ -11,10 +11,7 @@ class AIService {
   AIService._internal();
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  final List<AIProvider> _providers = [
-    OpenAIProvider(),
-    MockAIProvider(),
-  ];
+  final List<AIProvider> _providers = [OpenAIProvider(), MockAIProvider()];
 
   List<AIProvider> get providers => _providers;
 
@@ -106,10 +103,17 @@ class AIService {
     final apiKey = await getApiKey(provider.id);
 
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API Key is missing for ${provider.name}. Please configure in Settings.');
+      throw Exception(
+        'API Key is missing for ${provider.name}. Please configure in Settings.',
+      );
     }
 
-    final response = await provider.generateText(prompt, apiKey, model, contextText: contextText);
+    final response = await provider.generateText(
+      prompt,
+      apiKey,
+      model,
+      contextText: contextText,
+    );
     await _saveToHistory(prompt, response, provider.id, model);
     return response;
   }
@@ -126,11 +130,18 @@ class AIService {
     final apiKey = await getApiKey(provider.id);
 
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('API Key is missing for ${provider.name}. Please configure in Settings.');
+      throw Exception(
+        'API Key is missing for ${provider.name}. Please configure in Settings.',
+      );
     }
 
     String fullResponse = '';
-    await for (final chunk in provider.streamText(prompt, apiKey, model, contextText: contextText)) {
+    await for (final chunk in provider.streamText(
+      prompt,
+      apiKey,
+      model,
+      contextText: contextText,
+    )) {
       fullResponse += chunk;
       yield chunk;
     }
@@ -138,9 +149,43 @@ class AIService {
     await _saveToHistory(prompt, fullResponse, provider.id, model);
   }
 
-  Future<void> _saveToHistory(String prompt, String response, String providerId, String model) async {
+  Future<List<String>> _getHistoryList() async {
+    // Migrate legacy history from SharedPreferences if it exists
     final prefs = await SharedPreferences.getInstance();
-    final historyList = prefs.getStringList(_keyHistory) ?? [];
+    if (prefs.containsKey(_keyHistory)) {
+      final legacyHistory = prefs.getStringList(_keyHistory);
+      if (legacyHistory != null) {
+        await _secureStorage.write(
+          key: _keyHistory,
+          value: jsonEncode(legacyHistory),
+        );
+      }
+      await prefs.remove(_keyHistory);
+    }
+
+    final secureHistoryString = await _secureStorage.read(key: _keyHistory);
+    if (secureHistoryString == null || secureHistoryString.isEmpty) {
+      return [];
+    }
+
+    try {
+      final decoded = jsonDecode(secureHistoryString);
+      if (decoded is List) {
+        return decoded.cast<String>().toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> _saveToHistory(
+    String prompt,
+    String response,
+    String providerId,
+    String model,
+  ) async {
+    final historyList = await _getHistoryList();
 
     final entry = {
       'timestamp': DateTime.now().toIso8601String(),
@@ -156,16 +201,22 @@ class AIService {
       historyList.removeLast();
     }
 
-    await prefs.setStringList(_keyHistory, historyList);
+    await _secureStorage.write(
+      key: _keyHistory,
+      value: jsonEncode(historyList),
+    );
   }
 
   Future<List<Map<String, dynamic>>> getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final historyList = prefs.getStringList(_keyHistory) ?? [];
-    return historyList.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
+    final historyList = await _getHistoryList();
+    return historyList
+        .map((e) => jsonDecode(e) as Map<String, dynamic>)
+        .toList();
   }
 
   Future<void> clearHistory() async {
+    await _secureStorage.delete(key: _keyHistory);
+    // Also ensure legacy is cleared just in case
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyHistory);
   }
