@@ -27,19 +27,23 @@ class LocalDocumentStorage implements DocumentStorage {
   @override
   Future<List<WriterDocument>> listDocuments() async {
     final dir = await _getDocumentsDir();
-    final List<WriterDocument> documents = [];
+    final entities = await dir.list().toList();
 
-    await for (final entity in dir.list()) {
+    final futures = entities.map((entity) async {
       if (entity is File && entity.path.endsWith('.json')) {
         try {
           final jsonString = await entity.readAsString();
           final jsonMap = jsonDecode(jsonString);
-          documents.add(WriterDocument.fromJson(jsonMap));
+          return WriterDocument.fromJson(jsonMap);
         } catch (e) {
-          // Skip invalid files
+          return null;
         }
       }
-    }
+      return null;
+    });
+
+    final results = await Future.wait(futures);
+    final documents = results.whereType<WriterDocument>().toList();
 
     documents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return documents;
@@ -190,19 +194,23 @@ class LocalDocumentStorage implements DocumentStorage {
   @override
   Future<List<SpreadsheetDocument>> listSpreadsheets() async {
     final dir = await _getSpreadsheetsDir();
-    final List<SpreadsheetDocument> documents = [];
+    final entities = await dir.list().toList();
 
-    await for (final entity in dir.list()) {
+    final futures = entities.map((entity) async {
       if (entity is File && entity.path.endsWith('.json')) {
         try {
           final jsonString = await entity.readAsString();
           final jsonMap = jsonDecode(jsonString);
-          documents.add(SpreadsheetDocument.fromJson(jsonMap));
+          return SpreadsheetDocument.fromJson(jsonMap);
         } catch (e) {
-          // Skip invalid files
+          return null;
         }
       }
-    }
+      return null;
+    });
+
+    final results = await Future.wait(futures);
+    final documents = results.whereType<SpreadsheetDocument>().toList();
 
     documents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return documents;
@@ -341,19 +349,23 @@ class LocalDocumentStorage implements DocumentStorage {
   @override
   Future<List<PresentationDocument>> listPresentations() async {
     final dir = await _getPresentationsDir();
-    final List<PresentationDocument> documents = [];
+    final entities = await dir.list().toList();
 
-    await for (final entity in dir.list()) {
+    final futures = entities.map((entity) async {
       if (entity is File && entity.path.endsWith('.json')) {
         try {
           final jsonString = await entity.readAsString();
           final jsonMap = jsonDecode(jsonString);
-          documents.add(PresentationDocument.fromJson(jsonMap));
+          return PresentationDocument.fromJson(jsonMap);
         } catch (e) {
-          // Skip invalid files
+          return null;
         }
       }
-    }
+      return null;
+    });
+
+    final results = await Future.wait(futures);
+    final documents = results.whereType<PresentationDocument>().toList();
 
     documents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return documents;
