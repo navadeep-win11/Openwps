@@ -60,5 +60,11 @@ void main() {
       final eval = FormulaEvaluator(sheet);
       expect(eval.evaluate('=D1+1'), '1'); // D1 is null, treated as 0
     });
+
+    test('missing cell reference explicitly falls back to 0', () {
+      final eval = FormulaEvaluator(sheet);
+      // D1 is not set in the setup sheet cells.
+      expect(eval.evaluate('=D1'), '0');
+    });
   });
 }
