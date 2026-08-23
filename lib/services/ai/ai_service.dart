@@ -78,11 +78,16 @@ class AIService {
   }
 
   /// Returns a masked version of the API key for UI display (e.g. sk-...1234)
+  static String? maskApiKey(String? key) {
+    if (key == null || key.isEmpty) return null;
+    if (key.length < 15) return '********';
+    return '${key.substring(0, 3)}...${key.substring(key.length - 4)}';
+  }
+
+  /// Returns a masked version of the API key for UI display (e.g. sk-...1234)
   Future<String?> getMaskedApiKey(String providerId) async {
     final key = await getApiKey(providerId);
-    if (key == null || key.isEmpty) return null;
-    if (key.length <= 8) return '********';
-    return '${key.substring(0, 3)}...${key.substring(key.length - 4)}';
+    return maskApiKey(key);
   }
 
   Future<bool> testConnection(String providerId, String model) async {
