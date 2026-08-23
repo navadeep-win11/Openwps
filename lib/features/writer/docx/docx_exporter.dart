@@ -38,6 +38,28 @@ class DocxExporter {
     // 3. word/document.xml and extract media
     final deltaOps = jsonDecode(document.content) as List<dynamic>;
 
+    // Pre-fetch images asynchronously to avoid blocking the main isolate
+    final imageCache = <String, List<int>>{};
+    final imageFutures = <Future<void>>[];
+    for (final op in deltaOps) {
+      final insert = op['insert'];
+      if (insert is Map<String, dynamic> && insert.containsKey('image')) {
+        final imagePath = insert['image'] as String;
+        if (!imageCache.containsKey(imagePath)) {
+          imageCache[imagePath] = []; // Placeholder to prevent duplicate fetches
+          imageFutures.add(() async {
+            final file = File(imagePath);
+            if (await file.exists()) {
+              imageCache[imagePath] = await file.readAsBytes();
+            } else {
+              imageCache.remove(imagePath);
+            }
+          }());
+        }
+      }
+    }
+    await Future.wait(imageFutures);
+
     final docXml = XmlBuilder();
     docXml.processing('xml', 'version="1.0" encoding="UTF-8" standalone="yes"');
     docXml.element('w:document', attributes: {
@@ -83,13 +105,12 @@ class DocxExporter {
                   }
                 } else if (insert is Map<String, dynamic> && insert.containsKey('image')) {
                   final imagePath = insert['image'] as String;
-                  final file = File(imagePath);
-                  if (file.existsSync()) {
+                  if (imageCache.containsKey(imagePath)) {
                      final ext = p.extension(imagePath).replaceFirst('.', '');
                      final mediaName = 'image$rIdCounter.$ext';
 
                      // Add media file to zip
-                     final bytes = file.readAsBytesSync();
+                     final bytes = imageCache[imagePath]!;
                      archive.addFile(ArchiveFile('word/media/$mediaName', bytes.length, bytes));
 
                      // Add relationship
