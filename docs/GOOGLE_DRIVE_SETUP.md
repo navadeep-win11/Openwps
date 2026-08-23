@@ -26,7 +26,7 @@ To enable Google Drive integration in OpenWPS, you must configure a project in t
 2. Click "Create Credentials" > "OAuth client ID".
 3. Select "Android" as the Application type.
 4. Enter a name (e.g., "OpenWPS Android").
-5. Package name: `com.example.openwps` (or the actual package name of your app from `android/app/build.gradle`).
+5. Package name: `org.openwps.app` (or the actual package name of your app from `android/app/build.gradle`).
 6. SHA-1 certificate fingerprint:
    - For development, get this from your debug keystore:
      ```bash
