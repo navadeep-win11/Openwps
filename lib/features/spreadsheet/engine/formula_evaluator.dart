@@ -31,13 +31,10 @@ class FormulaEvaluator {
       final result = expression.evaluate(EvaluationType.REAL, contextModel);
 
       // Format result gracefully
-      if (result is double) {
-        if (result == result.toInt()) {
-          return result.toInt().toString();
-        }
-        return result.toStringAsFixed(2).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+      if (result == result.toInt()) {
+        return result.toInt().toString();
       }
-      return result.toString();
+      return result.toStringAsFixed(2).replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
     } catch (e) {
       return '#ERROR!';
     }
