@@ -6,23 +6,27 @@ class FormulaEvaluator {
 
   FormulaEvaluator(this.sheet);
 
-  String evaluate(String formula) {
+  String evaluate(String formula, {Set<String>? visited, int depth = 0}) {
     if (!formula.startsWith('=')) {
       return formula;
+    }
+
+    if (formula.length > 1000) {
+      return '#ERROR!';
     }
 
     try {
       String expressionStr = formula.substring(1).toUpperCase();
 
       // Simple implementation for basic functions: SUM, AVERAGE, MIN, MAX, COUNT, COUNTA
-      expressionStr = _resolveFunctions(expressionStr);
+      expressionStr = _resolveFunctions(expressionStr, visited: visited, depth: depth);
 
       // Resolve cell references (e.g. A1, B2)
-      expressionStr = _resolveCellReferences(expressionStr);
+      expressionStr = _resolveCellReferences(expressionStr, visited: visited, depth: depth);
 
       // Evaluate IF manually (naive implementation)
       if (expressionStr.startsWith('IF(')) {
-         return _evaluateIf(expressionStr);
+         return _evaluateIf(expressionStr, visited: visited, depth: depth);
       }
 
       final parser = Parser();
@@ -40,16 +44,16 @@ class FormulaEvaluator {
     }
   }
 
-  String _resolveFunctions(String expr) {
+  String _resolveFunctions(String expr, {Set<String>? visited, int depth = 0}) {
     final funcRegex = RegExp(r'(SUM|AVERAGE|MIN|MAX|COUNT|COUNTA)\(([A-Z]+[0-9]+:[A-Z]+[0-9]+|[A-Z]+[0-9]+(,[A-Z]+[0-9]+)*)\)');
     return expr.replaceAllMapped(funcRegex, (match) {
       final funcName = match.group(1)!;
       final argsStr = match.group(2)!;
       final cells = _parseRangeOrList(argsStr);
-      final values = cells.map((c) => _getNumericCellValue(c)).where((v) => v != null).cast<double>().toList();
+      final values = cells.map((c) => _getNumericCellValue(c, visited: visited, depth: depth)).where((v) => v != null).cast<double>().toList();
 
       if (funcName == 'COUNTA') {
-        final allCells = cells.map((c) => _getCellValue(c)).where((v) => v.isNotEmpty).length;
+        final allCells = cells.map((c) => _getCellValue(c, visited: visited, depth: depth)).where((v) => v.isNotEmpty).length;
         return allCells.toString();
       }
 
@@ -72,7 +76,7 @@ class FormulaEvaluator {
     });
   }
 
-  String _evaluateIf(String expr) {
+  String _evaluateIf(String expr, {Set<String>? visited, int depth = 0}) {
     // Basic IF(condition, true_val, false_val)
     final inner = expr.substring(3, expr.length - 1);
     final parts = _splitRespectingQuotes(inner, ',');
@@ -86,21 +90,21 @@ class FormulaEvaluator {
          // evaluate condition like A1>10. We use a naive approach since math_expressions doesn't do logical operators natively in this context without custom functions.
          if (conditionStr.contains('>')) {
             final split = conditionStr.split('>');
-            final left = _evaluateMath(split[0]);
-            final right = _evaluateMath(split[1]);
+            final left = _evaluateMath(split[0], visited: visited, depth: depth);
+            final right = _evaluateMath(split[1], visited: visited, depth: depth);
             conditionResult = left > right;
          } else if (conditionStr.contains('<')) {
             final split = conditionStr.split('<');
-            final left = _evaluateMath(split[0]);
-            final right = _evaluateMath(split[1]);
+            final left = _evaluateMath(split[0], visited: visited, depth: depth);
+            final right = _evaluateMath(split[1], visited: visited, depth: depth);
             conditionResult = left < right;
          } else if (conditionStr.contains('=')) {
             final split = conditionStr.split('=');
-            final left = _evaluateMath(split[0]);
-            final right = _evaluateMath(split[1]);
+            final left = _evaluateMath(split[0], visited: visited, depth: depth);
+            final right = _evaluateMath(split[1], visited: visited, depth: depth);
             conditionResult = left == right;
          } else {
-            conditionResult = _evaluateMath(conditionStr) != 0;
+            conditionResult = _evaluateMath(conditionStr, visited: visited, depth: depth) != 0;
          }
       } catch (_) {}
 
@@ -109,8 +113,8 @@ class FormulaEvaluator {
     return '#ERROR!';
   }
 
-  double _evaluateMath(String expr) {
-     final parsed = Parser().parse(_resolveCellReferences(expr));
+  double _evaluateMath(String expr, {Set<String>? visited, int depth = 0}) {
+     final parsed = Parser().parse(_resolveCellReferences(expr, visited: visited, depth: depth));
      return parsed.evaluate(EvaluationType.REAL, ContextModel());
   }
 
@@ -130,9 +134,15 @@ class FormulaEvaluator {
     final endCol = end.replaceAll(RegExp(r'[0-9]'), '');
     final endRow = int.parse(end.replaceAll(RegExp(r'[A-Z]'), ''));
 
-    final List<String> result = [];
     final startColInt = _colToInt(startCol);
     final endColInt = _colToInt(endCol);
+
+    final count = (endRow - startRow + 1) * (endColInt - startColInt + 1);
+    if (count > 10000 || count <= 0) {
+      return [];
+    }
+
+    final List<String> result = [];
 
     for (int r = startRow; r <= endRow; r++) {
       for (int c = startColInt; c <= endColInt; c++) {
@@ -142,30 +152,33 @@ class FormulaEvaluator {
     return result;
   }
 
-  String _resolveCellReferences(String expr) {
+  String _resolveCellReferences(String expr, {Set<String>? visited, int depth = 0}) {
     final cellRegex = RegExp(r'[A-Z]+[0-9]+');
     return expr.replaceAllMapped(cellRegex, (match) {
       final cellId = match.group(0)!;
-      final val = _getNumericCellValue(cellId);
+      final val = _getNumericCellValue(cellId, visited: visited, depth: depth);
       return val != null ? val.toString() : '0';
     });
   }
 
-  double? _getNumericCellValue(String cellId) {
-    final strVal = _getCellValue(cellId);
+  double? _getNumericCellValue(String cellId, {Set<String>? visited, int depth = 0}) {
+    final strVal = _getCellValue(cellId, visited: visited, depth: depth);
     return double.tryParse(strVal);
   }
 
-  String _getCellValue(String cellId) {
+  String _getCellValue(String cellId, {Set<String>? visited, int depth = 0}) {
+    if (depth > 50) return '#ERROR!';
+    if (visited != null && visited.contains(cellId)) return '#CIRCULAR!';
+
     final cell = sheet.cells[cellId];
     if (cell == null) return '';
-    // If the referenced cell has a formula, we ideally need a recursive evaluation tree or topological sort.
-    // For this milestone, we evaluate it cleanly if it's a formula, preventing infinite loops via depth check if we wanted to be robust.
-    // We will just read the literal value that was already calculated, or recursively evaluate it once.
+
     if (cell.formula != null && cell.formula!.startsWith('=')) {
-        // Prevent simple self-reference loop
-        if (cell.formula!.contains(cellId)) return '#CIRCULAR!';
-        return FormulaEvaluator(sheet).evaluate(cell.formula!);
+        return FormulaEvaluator(sheet).evaluate(
+          cell.formula!,
+          visited: {...(visited ?? {}), cellId},
+          depth: depth + 1,
+        );
     }
     return cell.value;
   }
