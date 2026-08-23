@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
 import '../../../storage/document_storage.dart';
@@ -65,7 +66,24 @@ class DocxImporter {
                      if (mediaFile != null) {
                        // Save to local temp first, then to persistent storage
                        final tempDir = await getTemporaryDirectory();
-                       final tempImagePath = '${tempDir.path}/${mediaPathInZip.split('/').last}';
+
+                       // Security Fix: Prevent Zip Slip vulnerability
+                       // Sanitize the path to handle potential backslashes
+                       final sanitizedPathInZip = mediaPathInZip.replaceAll('\\', '/');
+                       final fileName = p.basename(sanitizedPathInZip);
+
+                       // Reject empty or traversal filenames directly
+                       if (fileName.isEmpty || fileName == '..' || fileName == '.') {
+                         continue;
+                       }
+
+                       final tempImagePath = p.normalize(p.join(tempDir.path, fileName));
+
+                       // Canonicalization check: ensure the normalized path is strictly within the temporary directory
+                       if (!p.isWithin(tempDir.path, tempImagePath)) {
+                         continue;
+                       }
+
                        final tempFile = File(tempImagePath);
                        await tempFile.writeAsBytes(mediaFile.content as List<int>);
 
