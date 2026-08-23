@@ -104,7 +104,7 @@ class _PresentationScreenState extends State<PresentationScreen> {
   Future<void> _saveDocument() async {
     if (_document == null) return;
     try {
-      final updatedDoc = _document!.copyWith(updatedAt: DateTime.now());
+      final updatedDoc = _document!.copyWith(PresentationDocumentOptions(updatedAt: DateTime.now()));
       await _storage.updatePresentation(updatedDoc);
       _document = updatedDoc;
       _saveStatus.value = 'Saved';
