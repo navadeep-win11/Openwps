@@ -81,7 +81,7 @@ class AIService {
   Future<String?> getMaskedApiKey(String providerId) async {
     final key = await getApiKey(providerId);
     if (key == null || key.isEmpty) return null;
-    if (key.length <= 8) return '********';
+    if (key.length < 16) return '********';
     return '${key.substring(0, 3)}...${key.substring(key.length - 4)}';
   }
 
