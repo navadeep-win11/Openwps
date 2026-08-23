@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
 import '../../../storage/document_storage.dart';
@@ -65,19 +66,26 @@ class DocxImporter {
                      if (mediaFile != null) {
                        // Save to local temp first, then to persistent storage
                        final tempDir = await getTemporaryDirectory();
-                       final tempImagePath = '${tempDir.path}/${mediaPathInZip.split('/').last}';
-                       final tempFile = File(tempImagePath);
-                       await tempFile.writeAsBytes(mediaFile.content as List<int>);
 
-                       final persistentPath = await storage.saveImage(newDoc.id, tempImagePath);
+                       // Prevent Zip Slip vulnerability
+                       final sanitizedName = mediaPathInZip.replaceAll('\\', '/').split('/').last;
+                       final rawPath = p.join(tempDir.path, sanitizedName);
+                       final tempImagePath = p.normalize(rawPath);
 
-                       deltaOps.add({
-                         'insert': {'image': persistentPath},
-                         if (rAttrs.isNotEmpty) 'attributes': rAttrs
-                       });
+                       if (p.isWithin(tempDir.path, tempImagePath)) {
+                         final tempFile = File(tempImagePath);
+                         await tempFile.writeAsBytes(mediaFile.content as List<int>);
 
-                       // Cleanup temp
-                       if (await tempFile.exists()) await tempFile.delete();
+                         final persistentPath = await storage.saveImage(newDoc.id, tempImagePath);
+
+                         deltaOps.add({
+                           'insert': {'image': persistentPath},
+                           if (rAttrs.isNotEmpty) 'attributes': rAttrs
+                         });
+
+                         // Cleanup temp
+                         if (await tempFile.exists()) await tempFile.delete();
+                       }
                      }
                    }
                  }
