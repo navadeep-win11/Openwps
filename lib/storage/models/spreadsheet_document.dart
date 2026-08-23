@@ -46,8 +46,8 @@ class SheetData {
     return SheetData(
       id: json['id'] as String,
       name: json['name'] as String,
-      cells: (json['cells'] as Map<String, dynamic>).map(
-        (key, value) => MapEntry(key, CellData.fromJson(value as Map<String, dynamic>))
+      cells: (json['cells'] as Map).map(
+        (key, value) => MapEntry(key as String, CellData.fromJson(value as Map<String, dynamic>))
       ),
     );
   }
@@ -94,7 +94,7 @@ class SpreadsheetDocument {
       title: json['title'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
-      sheets: (json['sheets'] as List).map((e) => SheetData.fromJson(e as Map<String, dynamic>)).toList(),
+      sheets: (json['sheets'] as List).map((e) => SheetData.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
       activeSheet: json['activeSheet'] as String,
       isFavorite: json['isFavorite'] as bool? ?? false,
       storageLocation: json['storageLocation'] as String? ?? 'local',
