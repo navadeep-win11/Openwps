@@ -138,9 +138,33 @@ class AIService {
     await _saveToHistory(prompt, fullResponse, provider.id, model);
   }
 
-  Future<void> _saveToHistory(String prompt, String response, String providerId, String model) async {
+  Future<List<String>> _getHistoryList() async {
+    // Migration: If there is history in SharedPreferences, move it to secure storage
     final prefs = await SharedPreferences.getInstance();
-    final historyList = prefs.getStringList(_keyHistory) ?? [];
+    if (prefs.containsKey(_keyHistory)) {
+      final oldHistoryList = prefs.getStringList(_keyHistory);
+      if (oldHistoryList != null) {
+        await _secureStorage.write(
+            key: _keyHistory, value: jsonEncode(oldHistoryList));
+      }
+      await prefs.remove(_keyHistory);
+    }
+
+    final secureData = await _secureStorage.read(key: _keyHistory);
+    if (secureData == null || secureData.isEmpty) {
+      return [];
+    }
+
+    try {
+      final decoded = jsonDecode(secureData);
+      return List<String>.from(decoded);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> _saveToHistory(String prompt, String response, String providerId, String model) async {
+    final historyList = await _getHistoryList();
 
     final entry = {
       'timestamp': DateTime.now().toIso8601String(),
@@ -156,17 +180,17 @@ class AIService {
       historyList.removeLast();
     }
 
-    await prefs.setStringList(_keyHistory, historyList);
+    await _secureStorage.write(key: _keyHistory, value: jsonEncode(historyList));
   }
 
   Future<List<Map<String, dynamic>>> getHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final historyList = prefs.getStringList(_keyHistory) ?? [];
+    final historyList = await _getHistoryList();
     return historyList.map((e) => jsonDecode(e) as Map<String, dynamic>).toList();
   }
 
   Future<void> clearHistory() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyHistory);
+    await _secureStorage.delete(key: _keyHistory);
   }
 }
