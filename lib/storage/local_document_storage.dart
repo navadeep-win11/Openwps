@@ -29,14 +29,28 @@ class LocalDocumentStorage implements DocumentStorage {
     final dir = await _getDocumentsDir();
     final List<WriterDocument> documents = [];
 
-    await for (final entity in dir.list()) {
-      if (entity is File && entity.path.endsWith('.json')) {
+    final entities = await dir.list().toList();
+    final files = entities.whereType<File>().where((e) => e.path.endsWith('.json')).toList();
+
+    const batchSize = 50;
+    for (int i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final futures = batch.map((file) async {
         try {
-          final jsonString = await entity.readAsString();
+          final jsonString = await file.readAsString();
           final jsonMap = jsonDecode(jsonString);
-          documents.add(WriterDocument.fromJson(jsonMap));
+          return WriterDocument.fromJson(jsonMap);
         } catch (e) {
-          // Skip invalid files
+          return null;
+        }
+      });
+
+      final results = await Future.wait(futures);
+      for (final doc in results) {
+        if (doc != null) {
+          documents.add(doc);
         }
       }
     }
@@ -192,14 +206,28 @@ class LocalDocumentStorage implements DocumentStorage {
     final dir = await _getSpreadsheetsDir();
     final List<SpreadsheetDocument> documents = [];
 
-    await for (final entity in dir.list()) {
-      if (entity is File && entity.path.endsWith('.json')) {
+    final entities = await dir.list().toList();
+    final files = entities.whereType<File>().where((e) => e.path.endsWith('.json')).toList();
+
+    const batchSize = 50;
+    for (int i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final futures = batch.map((file) async {
         try {
-          final jsonString = await entity.readAsString();
+          final jsonString = await file.readAsString();
           final jsonMap = jsonDecode(jsonString);
-          documents.add(SpreadsheetDocument.fromJson(jsonMap));
+          return SpreadsheetDocument.fromJson(jsonMap);
         } catch (e) {
-          // Skip invalid files
+          return null;
+        }
+      });
+
+      final results = await Future.wait(futures);
+      for (final doc in results) {
+        if (doc != null) {
+          documents.add(doc);
         }
       }
     }
@@ -343,14 +371,28 @@ class LocalDocumentStorage implements DocumentStorage {
     final dir = await _getPresentationsDir();
     final List<PresentationDocument> documents = [];
 
-    await for (final entity in dir.list()) {
-      if (entity is File && entity.path.endsWith('.json')) {
+    final entities = await dir.list().toList();
+    final files = entities.whereType<File>().where((e) => e.path.endsWith('.json')).toList();
+
+    const batchSize = 50;
+    for (int i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final futures = batch.map((file) async {
         try {
-          final jsonString = await entity.readAsString();
+          final jsonString = await file.readAsString();
           final jsonMap = jsonDecode(jsonString);
-          documents.add(PresentationDocument.fromJson(jsonMap));
+          return PresentationDocument.fromJson(jsonMap);
         } catch (e) {
-          // Skip invalid files
+          return null;
+        }
+      });
+
+      final results = await Future.wait(futures);
+      for (final doc in results) {
+        if (doc != null) {
+          documents.add(doc);
         }
       }
     }
