@@ -39,6 +39,9 @@ class FormulaEvaluator {
       }
       return result.toString();
     } catch (e) {
+      if (e.toString().contains('#CIRCULAR!')) {
+        return '#CIRCULAR!';
+      }
       return '#ERROR!';
     }
   }
@@ -156,6 +159,9 @@ class FormulaEvaluator {
 
   double? _getNumericCellValue(String cellId) {
     final strVal = _getCellValue(cellId);
+    if (strVal == '#CIRCULAR!') {
+      throw Exception('#CIRCULAR!');
+    }
     return double.tryParse(strVal);
   }
 

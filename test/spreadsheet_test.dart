@@ -60,5 +60,17 @@ void main() {
       final eval = FormulaEvaluator(sheet);
       expect(eval.evaluate('=D1+1'), '1'); // D1 is null, treated as 0
     });
+
+    test('evaluates simple circular reference', () {
+      final circularSheet = SheetData(
+        id: '2',
+        name: 'Sheet2',
+        cells: {
+          'A1': CellData(value: '', formula: '=A1'),
+        },
+      );
+      final eval = FormulaEvaluator(circularSheet);
+      expect(eval.evaluate('=A1'), '#CIRCULAR!');
+    });
   });
 }
