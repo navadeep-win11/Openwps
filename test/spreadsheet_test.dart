@@ -50,6 +50,12 @@ void main() {
       expect(eval.evaluate('=MAX(A1:A3)'), '30');
     });
 
+    test('evaluates COUNTA function', () {
+      final eval = FormulaEvaluator(sheet);
+      expect(eval.evaluate('=COUNTA(A1:A3)'), '3');
+      expect(eval.evaluate('=COUNTA(A1:C1)'), '3'); // A1, B1, C1
+    });
+
     test('evaluates IF function naively', () {
       final eval = FormulaEvaluator(sheet);
       expect(eval.evaluate('=IF(A1>5,"Yes","No")'), 'YES');
