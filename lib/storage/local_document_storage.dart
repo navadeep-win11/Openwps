@@ -85,7 +85,7 @@ class LocalDocumentStorage implements DocumentStorage {
     final file = _getFile(dir, document.id);
 
     // Update timestamp on save
-    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final updatedDoc = document.copyWith(WriterDocumentOptions(updatedAt: DateTime.now()));
 
     final jsonString = jsonEncode(updatedDoc.toJson());
     await file.writeAsString(jsonString);
@@ -104,7 +104,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> renameDocument(String id, String newTitle) async {
     final doc = await getDocument(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(title: newTitle);
+      final updatedDoc = doc.copyWith(WriterDocumentOptions(title: newTitle));
       await updateDocument(updatedDoc);
     }
   }
@@ -140,7 +140,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> toggleFavorite(String id) async {
     final doc = await getDocument(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      final updatedDoc = doc.copyWith(WriterDocumentOptions(isFavorite: !doc.isFavorite));
       await updateDocument(updatedDoc);
     }
   }

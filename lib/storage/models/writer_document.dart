@@ -46,22 +46,32 @@ class WriterDocument {
     );
   }
 
-  WriterDocument copyWith({
-    String? title,
-    DateTime? updatedAt,
-    String? content,
-    bool? isFavorite,
-    String? syncStatus,
-  }) {
+  WriterDocument copyWith(WriterDocumentOptions options) {
     return WriterDocument(
       id: id,
-      title: title ?? this.title,
+      title: options.title ?? this.title,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      content: content ?? this.content,
-      isFavorite: isFavorite ?? this.isFavorite,
+      updatedAt: options.updatedAt ?? this.updatedAt,
+      content: options.content ?? this.content,
+      isFavorite: options.isFavorite ?? this.isFavorite,
       storageLocation: storageLocation,
-      syncStatus: syncStatus ?? this.syncStatus,
+      syncStatus: options.syncStatus ?? this.syncStatus,
     );
   }
+}
+
+class WriterDocumentOptions {
+  final String? title;
+  final DateTime? updatedAt;
+  final String? content;
+  final bool? isFavorite;
+  final String? syncStatus;
+
+  const WriterDocumentOptions({
+    this.title,
+    this.updatedAt,
+    this.content,
+    this.isFavorite,
+    this.syncStatus,
+  });
 }
