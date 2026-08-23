@@ -318,212 +318,222 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
     }
 
     return Scaffold(
+      bottomNavigationBar: _buildBottomNavigationBar(context),
+      appBar: _buildAppBar(context),
+      body: _buildBody(context),
+    );
+  }
 
-      bottomNavigationBar: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainer,
-          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: _addSheet,
-              tooltip: 'Add Sheet',
-            ),
-            Expanded(
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _document!.sheets.length,
-                itemBuilder: (context, index) {
-                  final sheet = _document!.sheets[index];
-                  final isActive = sheet.id == _document!.activeSheet;
-                  return InkWell(
-                    onTap: () => _switchSheet(sheet.id),
-                    onLongPress: () => _showSheetOptions(context, sheet),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        sheet.name,
-                        style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+  Widget _buildBottomNavigationBar(BuildContext context) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _addSheet,
+            tooltip: 'Add Sheet',
+          ),
+          Expanded(
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _document!.sheets.length,
+              itemBuilder: (context, index) {
+                final sheet = _document!.sheets[index];
+                final isActive = sheet.id == _document!.activeSheet;
+                return InkWell(
+                  onTap: () => _switchSheet(sheet.id),
+                  onLongPress: () => _showSheetOptions(context, sheet),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                          width: 2,
                         ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-
-      appBar: AppBar(
-        title: Text(_document!.title),
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ValueListenableBuilder<String>(
-                valueListenable: _saveStatus,
-                builder: (context, status, child) {
-                  return Text(
-                    status,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: status == 'Save failed'
-                              ? Theme.of(context).colorScheme.error
-                              : Theme.of(context).colorScheme.outline,
-                        ),
-                  );
-                },
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            onPressed: _exportToXlsx,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          SpreadsheetToolbar(
-            onAiPressed: _openAIBottomSheet,
-            currentStyle: _currentStyle,
-            onStyleChanged: _applyFormatting,
-            onAddRow: () {
-               _stateManager.insertRows(_stateManager.refRows.length, [PlutoRow(cells: {for (var col in _columns) col.field: PlutoCell(value: '')})]);
-               _onDocumentChanged();
-            },
-            onDeleteRow: () {
-               if (_stateManager.currentCell != null) {
-                  _stateManager.removeRows([_stateManager.currentCell!.row]);
-                  _onDocumentChanged();
-               } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a cell in the row to delete')));
-               }
-            },
-            onAddColumn: () {
-                final newColIndex = _columns.length;
-
-                String colName = '';
-                int tempCol = newColIndex + 1;
-                while (tempCol > 0) {
-                  int rem = (tempCol - 1) % 26;
-                  colName = String.fromCharCode('A'.codeUnitAt(0) + rem) + colName;
-                  tempCol = (tempCol - 1) ~/ 26;
-                }
-
-                final newCol = PlutoColumn(
-                  title: colName,
-                  field: colName,
-                  type: PlutoColumnType.text(),
-                  width: 100,
-                  enableColumnDrag: true,
-                  enableRowDrag: false,
-                  enableContextMenu: false,
-                  renderer: (rendererContext) {
-                    final sheet = _document!.sheets.firstWhere((s) => s.id == _document!.activeSheet, orElse: () => _document!.sheets.first);
-                    final cellId = '$colName${rendererContext.rowIdx + 1}';
-                    final cellData = sheet.cells[cellId];
-                    final style = cellData?.style ?? {};
-
-                    Color? bgColor;
-                    if (style['background'] != null) {
-                      try { bgColor = Color(int.parse(style['background'].replaceAll('#', '0xFF'))); } catch (_) {}
-                    }
-                    Color? fgColor;
-                    if (style['color'] != null) {
-                      try { fgColor = Color(int.parse(style['color'].replaceAll('#', '0xFF'))); } catch (_) {}
-                    }
-
-                    Alignment align = Alignment.centerLeft;
-                    if (style['align'] == 'center') align = Alignment.center;
-                    if (style['align'] == 'right') align = Alignment.centerRight;
-
-                    return Container(
-                      alignment: align,
-                      color: bgColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        rendererContext.cell.value.toString(),
-                        style: TextStyle(
-                          color: fgColor,
-                          fontWeight: style['bold'] == true ? FontWeight.bold : FontWeight.normal,
-                          fontStyle: style['italic'] == true ? FontStyle.italic : FontStyle.normal,
-                          decoration: style['underline'] == true ? TextDecoration.underline : TextDecoration.none,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                    alignment: Alignment.center,
+                    child: Text(
+                      sheet.name,
+                      style: TextStyle(
+                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 );
-
-                setState(() {
-                  _columns.add(newCol);
-                });
-                _stateManager.insertColumns(_columns.length - 1, [newCol]);
-                _onDocumentChanged();
-            },
-            onDeleteColumn: () {
-               if (_stateManager.currentColumn != null) {
-                  final colToDelete = _stateManager.currentColumn!;
-                  setState(() {
-                    _columns.removeWhere((c) => c.field == colToDelete.field);
-                  });
-                  _stateManager.removeColumns([colToDelete]);
-                  _onDocumentChanged();
-               } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a column to delete')));
-               }
-            },
-          ),
-          FormulaBar(
-            selectedCellPosition: _selectedCellPosition,
-            textController: _formulaController,
-            focusNode: _formulaFocusNode,
-            onSubmitted: _onFormulaSubmitted,
-            onFocusGained: () {},
-          ),
-          Expanded(
-            child: PlutoGrid(
-              key: _gridKey,
-              columns: _columns,
-              rows: _rows,
-              onLoaded: (PlutoGridOnLoadedEvent event) {
-                _stateManager = event.stateManager;
-                _stateManager.setSelectingMode(PlutoGridSelectingMode.cell);
               },
-              onChanged: _handleCellChange,
-              onSelected: _handleCellSelected,
-              configuration: PlutoGridConfiguration(
-                style: PlutoGridStyleConfig(
-                  gridBackgroundColor: Theme.of(context).colorScheme.surface,
-                  rowHeight: 32,
-                  columnHeight: 32,
-                  enableCellBorderVertical: true,
-                  enableCellBorderHorizontal: true,
-                  borderColor: Theme.of(context).colorScheme.outlineVariant,
-                  activatedColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2),
-                  activatedBorderColor: Theme.of(context).colorScheme.primary,
-                ),
-                enterKeyAction: PlutoGridEnterKeyAction.editingAndMoveDown,
-              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      title: Text(_document!.title),
+      actions: [
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ValueListenableBuilder<String>(
+              valueListenable: _saveStatus,
+              builder: (context, status, child) {
+                return Text(
+                  status,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: status == 'Save failed'
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.outline,
+                      ),
+                );
+              },
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.file_download),
+          onPressed: _exportToXlsx,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    return Column(
+      children: [
+        SpreadsheetToolbar(
+          onAiPressed: _openAIBottomSheet,
+          currentStyle: _currentStyle,
+          onStyleChanged: _applyFormatting,
+          onAddRow: () {
+             _stateManager.insertRows(_stateManager.refRows.length, [PlutoRow(cells: {for (var col in _columns) col.field: PlutoCell(value: '')})]);
+             _onDocumentChanged();
+          },
+          onDeleteRow: () {
+             if (_stateManager.currentCell != null) {
+                _stateManager.removeRows([_stateManager.currentCell!.row]);
+                _onDocumentChanged();
+             } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a cell in the row to delete')));
+             }
+          },
+          onAddColumn: () {
+              final newColIndex = _columns.length;
+
+              String colName = '';
+              int tempCol = newColIndex + 1;
+              while (tempCol > 0) {
+                int rem = (tempCol - 1) % 26;
+                colName = String.fromCharCode('A'.codeUnitAt(0) + rem) + colName;
+                tempCol = (tempCol - 1) ~/ 26;
+              }
+
+              final newCol = PlutoColumn(
+                title: colName,
+                field: colName,
+                type: PlutoColumnType.text(),
+                width: 100,
+                enableColumnDrag: true,
+                enableRowDrag: false,
+                enableContextMenu: false,
+                renderer: (rendererContext) {
+                  final sheet = _document!.sheets.firstWhere((s) => s.id == _document!.activeSheet, orElse: () => _document!.sheets.first);
+                  final cellId = '$colName${rendererContext.rowIdx + 1}';
+                  final cellData = sheet.cells[cellId];
+                  final style = cellData?.style ?? {};
+
+                  Color? bgColor;
+                  if (style['background'] != null) {
+                    try { bgColor = Color(int.parse(style['background'].replaceAll('#', '0xFF'))); } catch (_) {}
+                  }
+                  Color? fgColor;
+                  if (style['color'] != null) {
+                    try { fgColor = Color(int.parse(style['color'].replaceAll('#', '0xFF'))); } catch (_) {}
+                  }
+
+                  Alignment align = Alignment.centerLeft;
+                  if (style['align'] == 'center') align = Alignment.center;
+                  if (style['align'] == 'right') align = Alignment.centerRight;
+
+                  return Container(
+                    alignment: align,
+                    color: bgColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      rendererContext.cell.value.toString(),
+                      style: TextStyle(
+                        color: fgColor,
+                        fontWeight: style['bold'] == true ? FontWeight.bold : FontWeight.normal,
+                        fontStyle: style['italic'] == true ? FontStyle.italic : FontStyle.normal,
+                        decoration: style['underline'] == true ? TextDecoration.underline : TextDecoration.none,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                },
+              );
+
+              setState(() {
+                _columns.add(newCol);
+              });
+              _stateManager.insertColumns(_columns.length - 1, [newCol]);
+              _onDocumentChanged();
+          },
+          onDeleteColumn: () {
+             if (_stateManager.currentColumn != null) {
+                final colToDelete = _stateManager.currentColumn!;
+                setState(() {
+                  _columns.removeWhere((c) => c.field == colToDelete.field);
+                });
+                _stateManager.removeColumns([colToDelete]);
+                _onDocumentChanged();
+             } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a column to delete')));
+             }
+          },
+        ),
+        FormulaBar(
+          selectedCellPosition: _selectedCellPosition,
+          textController: _formulaController,
+          focusNode: _formulaFocusNode,
+          onSubmitted: _onFormulaSubmitted,
+          onFocusGained: () {},
+        ),
+        Expanded(
+          child: PlutoGrid(
+            key: _gridKey,
+            columns: _columns,
+            rows: _rows,
+            onLoaded: (PlutoGridOnLoadedEvent event) {
+              _stateManager = event.stateManager;
+              _stateManager.setSelectingMode(PlutoGridSelectingMode.cell);
+            },
+            onChanged: _handleCellChange,
+            onSelected: _handleCellSelected,
+            configuration: PlutoGridConfiguration(
+              style: PlutoGridStyleConfig(
+                gridBackgroundColor: Theme.of(context).colorScheme.surface,
+                rowHeight: 32,
+                columnHeight: 32,
+                enableCellBorderVertical: true,
+                enableCellBorderHorizontal: true,
+                borderColor: Theme.of(context).colorScheme.outlineVariant,
+                activatedColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2),
+                activatedBorderColor: Theme.of(context).colorScheme.primary,
+              ),
+              enterKeyAction: PlutoGridEnterKeyAction.editingAndMoveDown,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
