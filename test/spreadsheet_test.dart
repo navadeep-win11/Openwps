@@ -56,6 +56,13 @@ void main() {
       expect(eval.evaluate('=IF(A1<5,"Yes","No")'), 'NO');
     });
 
+    test('handles malformed IF functions gracefully', () {
+      final eval = FormulaEvaluator(sheet);
+      expect(eval.evaluate('=IF(A1>5,"Yes")'), '#ERROR!');
+      expect(eval.evaluate('=IF(A1>5,"Yes","No","Maybe")'), '#ERROR!');
+      expect(eval.evaluate('=IF()'), '#ERROR!');
+    });
+
     test('handles empty cells gracefully', () {
       final eval = FormulaEvaluator(sheet);
       expect(eval.evaluate('=D1+1'), '1'); // D1 is null, treated as 0
