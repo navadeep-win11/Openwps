@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openwps/storage/local_document_storage.dart';
 import 'package:openwps/features/writer/docx/docx_exporter.dart';
 import 'package:openwps/features/writer/docx/docx_importer.dart';
+import 'package:archive/archive.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -76,6 +77,31 @@ void main() {
     await badFile.writeAsString('not a real zip file');
 
     final importedDoc = await DocxImporter.importDocument(badFile, storage);
+    expect(importedDoc, isNull);
+  });
+
+  test('DOCX returns null when reading a non-existent file', () async {
+    final storage = LocalDocumentStorage();
+    final nonExistentFile = File('./test_docs/does_not_exist.docx');
+
+    final importedDoc = await DocxImporter.importDocument(nonExistentFile, storage);
+    expect(importedDoc, isNull);
+  });
+
+  test('DOCX returns null when zip archive lacks word/document.xml', () async {
+    final storage = LocalDocumentStorage();
+
+    // Create a valid zip file without word/document.xml
+    final archive = Archive();
+    archive.addFile(ArchiveFile('dummy.txt', 12, utf8.encode('Hello World!')));
+
+    final encoder = ZipEncoder();
+    final zipData = encoder.encode(archive);
+
+    final noDocXmlFile = File('./test_docs/no_doc_xml.docx');
+    await noDocXmlFile.writeAsBytes(zipData!);
+
+    final importedDoc = await DocxImporter.importDocument(noDocXmlFile, storage);
     expect(importedDoc, isNull);
   });
 }
