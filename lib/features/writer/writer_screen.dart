@@ -73,7 +73,7 @@ class _WriterScreenState extends State<WriterScreen> {
 
     try {
       final String currentContent = jsonEncode(_controller!.document.toDelta().toJson());
-      final updatedDoc = _document!.copyWith(content: currentContent);
+      final updatedDoc = _document!.copyWith(WriterDocumentOptions(content: currentContent));
 
       await _storage.updateDocument(updatedDoc);
 
@@ -146,7 +146,7 @@ class _WriterScreenState extends State<WriterScreen> {
     try {
       // Ensure latest changes are serialized
       final String currentContent = jsonEncode(_controller!.document.toDelta().toJson());
-      final docToExport = _document!.copyWith(content: currentContent);
+      final docToExport = _document!.copyWith(WriterDocumentOptions(content: currentContent));
 
       final dir = await getApplicationDocumentsDirectory();
       final exportsDir = Directory('${dir.path}/exports');

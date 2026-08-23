@@ -102,23 +102,33 @@ class SpreadsheetDocument {
     );
   }
 
-  SpreadsheetDocument copyWith({
-    String? title,
-    DateTime? updatedAt,
-    List<SheetData>? sheets,
-    String? activeSheet,
-    bool? isFavorite,
-  }) {
+  SpreadsheetDocument copyWith(SpreadsheetDocumentOptions options) {
     return SpreadsheetDocument(
       id: id,
-      title: title ?? this.title,
+      title: options.title ?? title,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      sheets: sheets ?? this.sheets,
-      activeSheet: activeSheet ?? this.activeSheet,
-      isFavorite: isFavorite ?? this.isFavorite,
+      updatedAt: options.updatedAt ?? updatedAt,
+      sheets: options.sheets ?? sheets,
+      activeSheet: options.activeSheet ?? activeSheet,
+      isFavorite: options.isFavorite ?? isFavorite,
       storageLocation: storageLocation,
       syncStatus: syncStatus,
     );
   }
+}
+
+class SpreadsheetDocumentOptions {
+  final String? title;
+  final DateTime? updatedAt;
+  final List<SheetData>? sheets;
+  final String? activeSheet;
+  final bool? isFavorite;
+
+  const SpreadsheetDocumentOptions({
+    this.title,
+    this.updatedAt,
+    this.sheets,
+    this.activeSheet,
+    this.isFavorite,
+  });
 }

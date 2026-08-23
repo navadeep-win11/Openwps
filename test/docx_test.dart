@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openwps/storage/local_document_storage.dart';
 import 'package:openwps/features/writer/docx/docx_exporter.dart';
 import 'package:openwps/features/writer/docx/docx_importer.dart';
+import 'package:openwps/storage/models/writer_document.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -43,7 +44,7 @@ void main() {
       {"insert": "\n"}
     ];
 
-    final updatedDoc = doc.copyWith(content: jsonEncode(content));
+    final updatedDoc = doc.copyWith(WriterDocumentOptions(content: jsonEncode(content)));
 
     final exportPath = './test_docs/RoundTripTest.docx';
     final exportedFile = await DocxExporter.exportDocument(updatedDoc, exportPath);
