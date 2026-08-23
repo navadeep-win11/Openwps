@@ -60,5 +60,10 @@ void main() {
       final eval = FormulaEvaluator(sheet);
       expect(eval.evaluate('=D1+1'), '1'); // D1 is null, treated as 0
     });
+
+    test('evaluates function with empty range', () {
+      final eval = FormulaEvaluator(sheet);
+      expect(eval.evaluate('=SUM(D1:D10)'), '0');
+    });
   });
 }
