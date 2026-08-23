@@ -78,4 +78,16 @@ void main() {
     final importedDoc = await DocxImporter.importDocument(badFile, storage);
     expect(importedDoc, isNull);
   });
+
+  test('DOCX gracefully handles file read errors (e.g. missing file)', () async {
+    final storage = LocalDocumentStorage();
+    final missingFile = File('./test_docs/non_existent.docx');
+    // Ensure the file doesn't exist
+    if (await missingFile.exists()) {
+      await missingFile.delete();
+    }
+
+    final importedDoc = await DocxImporter.importDocument(missingFile, storage);
+    expect(importedDoc, isNull);
+  });
 }
