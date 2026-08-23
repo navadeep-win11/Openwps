@@ -85,7 +85,7 @@ class LocalDocumentStorage implements DocumentStorage {
     final file = _getFile(dir, document.id);
 
     // Update timestamp on save
-    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final updatedDoc = document.copyWith(WriterDocumentUpdate(updatedAt: DateTime.now()));
 
     final jsonString = jsonEncode(updatedDoc.toJson());
     await file.writeAsString(jsonString);
@@ -104,7 +104,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> renameDocument(String id, String newTitle) async {
     final doc = await getDocument(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(title: newTitle);
+      final updatedDoc = doc.copyWith(WriterDocumentUpdate(title: newTitle));
       await updateDocument(updatedDoc);
     }
   }
@@ -140,7 +140,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> toggleFavorite(String id) async {
     final doc = await getDocument(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      final updatedDoc = doc.copyWith(WriterDocumentUpdate(isFavorite: !doc.isFavorite));
       await updateDocument(updatedDoc);
     }
   }
@@ -253,7 +253,7 @@ class LocalDocumentStorage implements DocumentStorage {
     final dir = await _getSpreadsheetsDir();
     final file = _getSpreadsheetFile(dir, document.id);
 
-    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final updatedDoc = document.copyWith(SpreadsheetDocumentUpdate(updatedAt: DateTime.now()));
     final jsonString = jsonEncode(updatedDoc.toJson());
     await file.writeAsString(jsonString);
   }
@@ -271,7 +271,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> renameSpreadsheet(String id, String newTitle) async {
     final doc = await getSpreadsheet(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(title: newTitle);
+      final updatedDoc = doc.copyWith(SpreadsheetDocumentUpdate(title: newTitle));
       await updateSpreadsheet(updatedDoc);
     }
   }
@@ -308,7 +308,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> toggleSpreadsheetFavorite(String id) async {
     final doc = await getSpreadsheet(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      final updatedDoc = doc.copyWith(SpreadsheetDocumentUpdate(isFavorite: !doc.isFavorite));
       await updateSpreadsheet(updatedDoc);
     }
   }
@@ -418,7 +418,7 @@ class LocalDocumentStorage implements DocumentStorage {
     final dir = await _getPresentationsDir();
     final file = _getPresentationFile(dir, document.id);
 
-    final updatedDoc = document.copyWith(updatedAt: DateTime.now());
+    final updatedDoc = document.copyWith(PresentationDocumentUpdate(updatedAt: DateTime.now()));
     final jsonString = jsonEncode(updatedDoc.toJson());
     await file.writeAsString(jsonString);
   }
@@ -436,7 +436,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> renamePresentation(String id, String newTitle) async {
     final doc = await getPresentation(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(title: newTitle);
+      final updatedDoc = doc.copyWith(PresentationDocumentUpdate(title: newTitle));
       await updatePresentation(updatedDoc);
     }
   }
@@ -473,7 +473,7 @@ class LocalDocumentStorage implements DocumentStorage {
   Future<void> togglePresentationFavorite(String id) async {
     final doc = await getPresentation(id);
     if (doc != null) {
-      final updatedDoc = doc.copyWith(isFavorite: !doc.isFavorite);
+      final updatedDoc = doc.copyWith(PresentationDocumentUpdate(isFavorite: !doc.isFavorite));
       await updatePresentation(updatedDoc);
     }
   }

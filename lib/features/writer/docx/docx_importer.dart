@@ -123,7 +123,7 @@ class DocxImporter {
         deltaOps.add({'insert': '\n'});
       }
 
-      final finalDoc = newDoc.copyWith(content: jsonEncode(deltaOps));
+      final finalDoc = newDoc.copyWith(WriterDocumentUpdate(content: jsonEncode(deltaOps)));
       await storage.updateDocument(finalDoc);
       return finalDoc;
 

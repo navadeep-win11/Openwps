@@ -155,23 +155,33 @@ class PresentationDocument {
     );
   }
 
-  PresentationDocument copyWith({
-    String? title,
-    DateTime? updatedAt,
-    List<SlideData>? slides,
-    String? activeSlide,
-    bool? isFavorite,
-  }) {
+  PresentationDocument copyWith(PresentationDocumentUpdate update) {
     return PresentationDocument(
       id: id,
-      title: title ?? this.title,
+      title: update.title ?? title,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      slides: slides ?? this.slides,
-      activeSlide: activeSlide ?? this.activeSlide,
-      isFavorite: isFavorite ?? this.isFavorite,
+      updatedAt: update.updatedAt ?? updatedAt,
+      slides: update.slides ?? slides,
+      activeSlide: update.activeSlide ?? activeSlide,
+      isFavorite: update.isFavorite ?? isFavorite,
       storageLocation: storageLocation,
       syncStatus: syncStatus,
     );
   }
+}
+
+class PresentationDocumentUpdate {
+  final String? title;
+  final DateTime? updatedAt;
+  final List<SlideData>? slides;
+  final String? activeSlide;
+  final bool? isFavorite;
+
+  const PresentationDocumentUpdate({
+    this.title,
+    this.updatedAt,
+    this.slides,
+    this.activeSlide,
+    this.isFavorite,
+  });
 }

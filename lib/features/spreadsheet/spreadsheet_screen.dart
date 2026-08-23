@@ -147,7 +147,7 @@ class _SpreadsheetScreenState extends State<SpreadsheetScreen> {
   Future<void> _saveDocument() async {
     if (_document == null) return;
     try {
-      final updatedDoc = _document!.copyWith(updatedAt: DateTime.now());
+      final updatedDoc = _document!.copyWith(SpreadsheetDocumentUpdate(updatedAt: DateTime.now()));
       await _storage.updateSpreadsheet(updatedDoc);
       _document = updatedDoc;
       _saveStatus.value = 'Saved';
